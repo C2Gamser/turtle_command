@@ -65,17 +65,18 @@ impl ApiKey {
     }
 }
 
+// Manages dispatching turtles, tracking them, and resolving issues
 struct TurtleManager {
     turtles: Vec<Turtle>
 }
 
 impl TurtleManager {
+    // Loads all the turtles from the turtles/ directory and returns a TurtleManager object
     fn load() -> Self {
         let mut turtle_list = vec![];
         let turtle_iter = std::fs::read_dir("turtles/").unwrap();
 
         for path in turtle_iter {
-
             turtle_list.push(Turtle::load(path.unwrap().file_name()));
         }
 
@@ -128,7 +129,8 @@ struct Turtle {
     inventory: Inventory,
     equipped_left: Slot,
     equipped_right: Slot,
-    coordinates: Coordinate
+    coordinates: Coordinate,
+    fuel: i16
 }
 
 impl Turtle {
@@ -137,17 +139,13 @@ impl Turtle {
         if !fs::exists("turtles/").unwrap() {
             fs::create_dir("turtles/").unwrap();
         }
-        fs::write(format!("turtles/{}.txt",self.id), string_self).expect(&format!("Should be able to write to `turtles/{}.txt`",self.id));
+        fs::write(format!("turtles/{}.json",self.id), string_self).expect(&format!("Should be able to write to `turtles/{}.json`",self.id));
     }
 
     fn load(filepath: OsString) -> Self {
         let  data = fs::read_to_string(&filepath).expect(&format!("Should be able to read `{}`",filepath.display()));
-        let mut new_self: Turtle = json::from_str(&data).unwrap();
+        let new_self: Turtle = json::from_str(&data).unwrap();
 
-        // We assume the turtles we load are not connected
-        new_self.connected = false;
-        // Also creates an empty 16 slot inventory
-        new_self.inventory = Inventory {size: 16, slots: vec![None; 16]};
         new_self
     }
 }
@@ -178,13 +176,14 @@ struct TurtleRegistrationData {
     inventory_size: i32,
     equipped_left: Slot,
     equipped_right: Slot,
-    coordinates: Coordinate
+    coordinates: Coordinate,
+    fuel: i16
 }
 
 // Registers a turtle in the network
-#[post("/register", data = "<registration_data>")]
-fn register(registration_data: json::Json<TurtleRegistrationData>, key: ApiKey) -> String {
-    let new_turtle = Turtle { id: registration_data.id, connected: registration_data.connected, inventory: Inventory::new(registration_data.inventory_size, registration_data.inventory_contents.clone()), equipped_left: registration_data.equipped_left.clone(), equipped_right: registration_data.equipped_right.clone(), coordinates: registration_data.coordinates.clone() };
+#[post("/register", data = "<reg_data>")]
+fn register(reg_data: json::Json<TurtleRegistrationData>, key: ApiKey) -> String {
+    let new_turtle = Turtle { id: reg_data.id, connected: reg_data.connected, inventory: Inventory::new(reg_data.inventory_size, reg_data.inventory_contents.clone()), equipped_left: reg_data.equipped_left.clone(), equipped_right: reg_data.equipped_right.clone(), coordinates: reg_data.coordinates.clone(), fuel: reg_data.fuel };
 
     Turtle::save(&new_turtle);
     LuaReadableResponse {kind: "status".to_string(), payload: "successful".to_string()}.to_string()
