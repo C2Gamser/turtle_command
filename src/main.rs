@@ -1,9 +1,10 @@
-use serde::Serialize;
-use std::{mem::transmute, path::Path};
-use uuid::{Uuid, uuid};
-use std::fs;
+use serde::{Deserialize, Serialize};
+use std::ffi::OsString;
+use std::{path::Path};
+use uuid::{Uuid};
+use std::{fs, vec};
 
-use rocket::{http::Status, serde::json::Json};
+use rocket::{http::Status, serde::json};
 use rocket::request::{FromRequest, Request, Outcome};
 #[macro_use] extern crate rocket;
 
@@ -56,7 +57,98 @@ impl ApiKey {
     }
 
     fn equal_to_string(&self, check_with: &str) -> bool {
+        if Uuid::parse_str(check_with).is_err() {
+            return false
+        }
+
         self.uuid == Uuid::parse_str(check_with).unwrap()
+    }
+}
+
+struct TurtleManager {
+    turtles: Vec<Turtle>
+}
+
+impl TurtleManager {
+    fn load() -> Self {
+        let mut turtle_list = vec![];
+        let turtle_iter = std::fs::read_dir("turtles/").unwrap();
+
+        for path in turtle_iter {
+
+            turtle_list.push(Turtle::load(path.unwrap().file_name()));
+        }
+
+        TurtleManager{ turtles: turtle_list}
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+struct Slot {
+    name: String,
+    count: i8
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+struct Inventory {
+    size: i32,
+    slots: Vec<Option<Slot>>
+}
+
+impl Inventory {
+    fn new(size: i32, contents: Vec<Option<Slot>>) -> Self {
+        let mut new_inventory = Inventory {size: size, slots: (contents) };
+        let deficit = new_inventory.size - (new_inventory.slots.len() as i32);
+
+        if deficit > 0 {
+            // Fills the rest of the array with None if it isnt full
+
+            let mut slice: Vec<Option<Slot>> = vec![None;deficit as usize];
+            new_inventory.slots.append(&mut slice);
+        }
+        new_inventory
+    }
+
+    fn new_empty(size: i32) -> Self {
+        Inventory { size: size, slots: vec![None; size.try_into().unwrap()] }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone)]
+struct Coordinate {
+    x: i32,
+    y: i32,
+    z: i32
+}
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+struct Turtle {
+    id: i16,
+    connected: bool,
+    inventory: Inventory,
+    equipped_left: Slot,
+    equipped_right: Slot,
+    coordinates: Coordinate
+}
+
+impl Turtle {
+    fn save(&self) {
+        let string_self = json::to_pretty_string(&self).unwrap();
+        if !fs::exists("turtles/").unwrap() {
+            fs::create_dir("turtles/").unwrap();
+        }
+        fs::write(format!("turtles/{}.txt",self.id), string_self).expect(&format!("Should be able to write to `turtles/{}.txt`",self.id));
+    }
+
+    fn load(filepath: OsString) -> Self {
+        let  data = fs::read_to_string(&filepath).expect(&format!("Should be able to read `{}`",filepath.display()));
+        let mut new_self: Turtle = json::from_str(&data).unwrap();
+
+        // We assume the turtles we load are not connected
+        new_self.connected = false;
+        // Also creates an empty 16 slot inventory
+        new_self.inventory = Inventory {size: 16, slots: vec![None; 16]};
+        new_self
     }
 }
 
@@ -78,13 +170,27 @@ impl<'r> FromRequest<'r> for ApiKey {
     }
 }
 
-// Registers a turtle in the network
-#[post("/register", data = "<registration_data>")]
-fn register(registration_data: Json<String>, key: ApiKey) -> String {
-    LuaReadableResponse { kind: "Response".to_string() }.to_string()
+#[derive(Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+struct TurtleRegistrationData {
+    id: i16,
+    connected: bool,
+    inventory_contents: Vec<Option<Slot>>,
+    inventory_size: i32,
+    equipped_left: Slot,
+    equipped_right: Slot,
+    coordinates: Coordinate
 }
 
-// Starts a connection with a turtle
+// Registers a turtle in the network
+#[post("/register", data = "<registration_data>")]
+fn register(registration_data: json::Json<TurtleRegistrationData>, key: ApiKey) -> String {
+    let new_turtle = Turtle { id: registration_data.id, connected: registration_data.connected, inventory: Inventory::new(registration_data.inventory_size, registration_data.inventory_contents.clone()), equipped_left: registration_data.equipped_left.clone(), equipped_right: registration_data.equipped_right.clone(), coordinates: registration_data.coordinates.clone() };
+
+    Turtle::save(&new_turtle);
+    LuaReadableResponse {kind: "status".to_string(), payload: "successful".to_string()}.to_string()
+}
+
+// Starts a websocket connection with a turtle
 #[get("/connect")]
 fn connect(key: ApiKey) -> &'static str {
     "Hello"
