@@ -6,6 +6,7 @@ use std::{fs, vec};
 
 use rocket::{http::Status, serde::json};
 use rocket::request::{FromRequest, Request, Outcome};
+use rocket_ws as ws;
 #[macro_use] extern crate rocket;
 
 #[derive(Serialize)]
@@ -66,6 +67,7 @@ impl ApiKey {
 }
 
 // Manages dispatching turtles, tracking them, and resolving issues
+// Should also handle keeping data up to date, such as pinging turtles to make sure they are still connected
 struct TurtleManager {
     turtles: Vec<Turtle>
 }
@@ -97,17 +99,23 @@ struct Inventory {
 }
 
 impl Inventory {
-    fn new(size: i32, contents: Vec<Option<Slot>>) -> Self {
-        let mut new_inventory = Inventory {size: size, slots: (contents) };
-        let deficit = new_inventory.size - (new_inventory.slots.len() as i32);
+    fn new(size: i32, contents: Option<Vec<Option<Slot>>>) -> Self {
+        match contents {
+            Some(contents_verified) => {
+                let mut new_inventory = Inventory {size: size, slots: (contents_verified) };
+                let deficit = new_inventory.size - (new_inventory.slots.len() as i32);
 
-        if deficit > 0 {
-            // Fills the rest of the array with None if it isnt full
+                if deficit > 0 {
+                    // Fills the rest of the array with None if it isnt full
 
-            let mut slice: Vec<Option<Slot>> = vec![None;deficit as usize];
-            new_inventory.slots.append(&mut slice);
+                    let mut slice: Vec<Option<Slot>> = vec![None;deficit as usize];
+                    new_inventory.slots.append(&mut slice);
+                }
+                new_inventory
+            }
+
+            None => Self::new_empty(size)
         }
-        new_inventory
     }
 
     fn new_empty(size: i32) -> Self {
@@ -127,13 +135,14 @@ struct Turtle {
     id: i16,
     connected: bool,
     inventory: Inventory,
-    equipped_left: Slot,
-    equipped_right: Slot,
+    equipped_left: Option<Slot>,
+    equipped_right: Option<Slot>,
     coordinates: Coordinate,
     fuel: i16
 }
 
 impl Turtle {
+    // Saves itself to a file in turtles/ with the name being its id
     fn save(&self) {
         let string_self = json::to_pretty_string(&self).unwrap();
         if !fs::exists("turtles/").unwrap() {
@@ -172,10 +181,9 @@ impl<'r> FromRequest<'r> for ApiKey {
 struct TurtleRegistrationData {
     id: i16,
     connected: bool,
-    inventory_contents: Vec<Option<Slot>>,
-    inventory_size: i32,
-    equipped_left: Slot,
-    equipped_right: Slot,
+    inventory_contents: Option<Vec<Option<Slot>>>,
+    equipped_left: Option<Slot>,
+    equipped_right: Option<Slot>,
     coordinates: Coordinate,
     fuel: i16
 }
@@ -183,21 +191,42 @@ struct TurtleRegistrationData {
 // Registers a turtle in the network
 #[post("/register", data = "<reg_data>")]
 fn register(reg_data: json::Json<TurtleRegistrationData>, key: ApiKey) -> String {
-    let new_turtle = Turtle { id: reg_data.id, connected: reg_data.connected, inventory: Inventory::new(reg_data.inventory_size, reg_data.inventory_contents.clone()), equipped_left: reg_data.equipped_left.clone(), equipped_right: reg_data.equipped_right.clone(), coordinates: reg_data.coordinates.clone(), fuel: reg_data.fuel };
+    dbg!(&reg_data);
+
+    let new_turtle = Turtle {
+        id: reg_data.id,
+        connected: reg_data.connected,
+        inventory: Inventory::new(16, reg_data.inventory_contents.clone()),
+        equipped_left: reg_data.equipped_left.clone(),
+        equipped_right: reg_data.equipped_right.clone(),
+        coordinates: reg_data.coordinates.clone(),
+        fuel: reg_data.fuel
+    };
 
     Turtle::save(&new_turtle);
     LuaReadableResponse {kind: "status".to_string(), payload: "successful".to_string()}.to_string()
 }
 
 // Starts a websocket connection with a turtle
-#[get("/connect")]
-fn connect(key: ApiKey) -> &'static str {
-    "Hello"
+// Turtles will likely do this right when they boot up
+#[get("/websocket")]
+fn websocket(ws: ws::WebSocket, key: ApiKey) -> ws::Channel<'static> {
+    use rocket::futures::{SinkExt, StreamExt};
+
+    dbg!("WEBSOCKET CONNECTION ESTABLISHED!");
+
+    ws.channel(move |mut stream| Box::pin(async move {
+        while let Some(message) = stream.next().await {
+            let _ = stream.send(rocket_ws::Message::Text("Test".to_string())).await;
+        }
+
+        Ok(())
+    }))
 }
 
 #[launch]
 fn rocket() -> _ {
     // Creates a new API key if there isn't one
     ApiKey::load_or_new();
-    rocket::build().mount("/", routes![connect,register])
+    rocket::build().mount("/", routes![register, websocket])
 }
