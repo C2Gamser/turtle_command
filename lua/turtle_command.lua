@@ -1,3 +1,5 @@
+local mv = require("move_utilities")
+
 -- Helper function to return url, api_key
 local function fetch_conneciton_data()
     local url_file = fs.open("turtle_command/url.txt","r")
@@ -10,7 +12,8 @@ local function fetch_conneciton_data()
 end
 
 -- Makes sure that all the files that must exist, do
--- If they don't have any contents then this warns the user too
+-- If they don't have any contents then this warns the user too\
+-- In the case of the direction file, it will not allow the user to continue the program unless it has a direciton in it (n, s, e, w)
 local function setup_files()
     if not fs.exists("turtle_command/url.txt") then
         local file = fs.open("turtle_command/url.txt","w")
@@ -22,6 +25,11 @@ local function setup_files()
         file.close()
     end
 
+    if not fs.exists("turtle_command/facing.txt") then
+        local file = fs.open("turtle_command/facing.txt","w")
+        file.close()
+    end
+
     local url, api_key = fetch_conneciton_data()
     if url == nil then
         print("Warning: No URL in turtle_command/url.txt!")
@@ -29,6 +37,14 @@ local function setup_files()
 
     if api_key == nil then
         print("Warning: No API key in turtle_command/api_key.txt!")
+    end
+
+    if mv.read_first_line("turtle_command/facing.txt") == nil then
+        if term.isColor() then
+            term.setTextColor(colors.red)
+        end
+        print("Error: No direction key in turtle_command/facing.txt, you must manually insert the direction this turtle is facing!")
+        error()
     end
 end
 

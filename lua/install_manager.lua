@@ -1,6 +1,7 @@
 local download_list = {
     "turtle_command.lua",
     "install_manager.lua",
+    "move_utilities.lua"
 }
 
 -- Helper function to return the server url
@@ -23,6 +24,11 @@ for i, v in pairs(download_list) do
         response.close()
         print("Got "..v..".")
     end
+end
+
+-- Removes the install manager if it is in the wrong place, e.g. on first installation
+if fs.exists("install_manager.lua") and fs.exists("turtle_command/install_manager.lua") then
+    fs.delete("install_manager.lua")
 end
 
 shell.run("turtle_command/turtle_command.lua")
