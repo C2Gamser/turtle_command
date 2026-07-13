@@ -126,25 +126,23 @@ local function establish_websocket()
     return socket
 end
 
-local function websocket_listener(websocket)
-    while true do
-        local response, binary = websocket.receive()
+local function handle_websocket_message(event_data, websocket)
+    local url = event_data[1]
+    local message = event_data[2]
+    local is_binary = event_data[3]
 
-        if binary then
-            error("Recieved binary response from websocket!")
-        end
-
-        print(response)
-        local kind, response = parse_response(response)
-
-        -- TODO: Deal with responses
-
+    if is_binary then
+        error("Recieved binary response from websocket!")
     end
+
+    local kind, data = parse_response(message)
+    print("Kind: "..kind.."\n".."Data: "..data)
+
+    -- TODO: Deal with responses
 end
 
 -- Handles the terminate event so it shuts down the websocket before terminating
-local function custom_terminate(websocket)
-    local event = os.pullEventRaw("terminate")
+local function handle_terminate(websocket)
     websocket.close()
     print("Websocket shut down.")
     if term.isColor() then
@@ -154,9 +152,22 @@ local function custom_terminate(websocket)
     error()
 end
 
+local function persistent_event_handler(websocket)
+    while true do
+        local event_data = table.pack(os.pullEventRaw())
+        local event = table.remove(event_data, 1)
+
+        if event == "terminate" then
+            handle_terminate(websocket)
+        elseif event == "websocket_message" then
+            handle_websocket_message(event_data, websocket)
+        end
+    end
+end
+
 setup_files()
 register()
 
 local websocket = establish_websocket()
-websocket_listener(websocket)
+persistent_event_handler(websocket)
 
