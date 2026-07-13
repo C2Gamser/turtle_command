@@ -1,13 +1,16 @@
 use rocket::form::Form;
 use rocket::fs::{FileServer, NamedFile, TempFile};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::ffi::OsString;
+use std::sync::{Arc, Mutex};
 use std::{path::Path};
 use uuid::{Uuid};
 use std::{fs, vec};
 
-use rocket::{http::Status, serde::json};
+use rocket::{http::Status, serde::json, State};
 use rocket::request::{FromRequest, Request, Outcome};
+use rocket::tokio::sync::mpsc;
 use rocket_ws as ws;
 #[macro_use] extern crate rocket;
 
@@ -68,6 +71,44 @@ impl ApiKey {
     }
 }
 
+// NOTE: Created with AI
+// Registry that maps a turtle's id to a sender half of an mpsc channel.
+// Any route (e.g. web_command) can grab this shared, managed state and push
+// a message onto a specific turtle's channel. The websocket task for that
+// turtle is the one reading from the *receiver* half and forwarding
+// the message out over the actual websocket.
+struct TurtleConnections {
+    senders: Mutex<HashMap<u16, mpsc::UnboundedSender<ws::Message>>>
+}
+
+impl TurtleConnections {
+    fn new() -> Self {
+        TurtleConnections { senders: Mutex::new(HashMap::new()) }
+    }
+
+    fn register(&self, id: u16, sender: mpsc::UnboundedSender<ws::Message>) {
+        self.senders.lock().unwrap().insert(id, sender);
+    }
+
+    fn unregister(&self, id: u16) {
+        self.senders.lock().unwrap().remove(&id);
+    }
+
+    // Returns true if the message was successfully queued for delivery
+    fn send_to(&self, id: u16, message: ws::Message) -> bool {
+        if let Some(sender) = self.senders.lock().unwrap().get(&id) {
+            sender.send(message).is_ok()
+        } else {
+            false
+        }
+    }
+
+    fn get_connected_ids(&self) -> Vec<u16> {
+        let senders_vec = self.senders.lock().unwrap().keys().copied().collect();
+        senders_vec
+    }
+}
+
 // Manages dispatching turtles, tracking them, and resolving issues
 // Should also handle keeping data up to date, such as pinging turtles to make sure they are still connected
 struct TurtleManager {
@@ -103,8 +144,8 @@ struct Inventory {
 impl Inventory {
     fn new(size: i32, contents: Option<Vec<Option<Slot>>>) -> Self {
         match contents {
-            Some(contents_verified) => {
-                let mut new_inventory = Inventory {size: size, slots: (contents_verified) };
+            Some(contents) => {
+                let mut new_inventory = Inventory {size: size, slots: (contents) };
                 let deficit = new_inventory.size - (new_inventory.slots.len() as i32);
 
                 if deficit > 0 {
@@ -134,7 +175,7 @@ struct Coordinate {
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 struct Turtle {
-    id: i16,
+    id: u16,
     connected: bool,
     inventory: Inventory,
     equipped_left: Option<Slot>,
@@ -181,7 +222,7 @@ impl<'r> FromRequest<'r> for ApiKey {
 
 #[derive(Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 struct TurtleRegistrationData {
-    id: i16,
+    id: u16,
     connected: bool,
     inventory_contents: Option<Vec<Option<Slot>>>,
     equipped_left: Option<Slot>,
@@ -209,16 +250,51 @@ fn register(reg_data: json::Json<TurtleRegistrationData>, _key: ApiKey) -> Strin
     LuaReadableResponse {kind: "status".to_string(), payload: "successful".to_string()}.to_string()
 }
 
-// Starts a websocket connection with a turtle
-// Turtles will likely do this right when they boot up
-#[get("/websocket")]
-fn websocket(ws: ws::WebSocket, _key: ApiKey) -> ws::Channel<'static> {
+// NOTE: Created with AI
+// Starts a websocket connection with a turtle.
+// Turtles connect with their id in the query string, e.g. `/websocket?id=5`
+// We register an mpsc sender for that id in the shared TurtleConnections state, then run two loops concurrently:
+//   - outgoing: anything pushed onto the mpsc channel (e.g. from web_command)
+//     gets forwarded out over the actual websocket to the turtle
+//   - incoming: anything the turtle sends back gets read and can be handled
+//     (logged, parsed, used to update turtle state, etc.)
+#[get("/websocket?<id>")]
+fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnections>>, _key: ApiKey) -> ws::Channel<'static> {
     use rocket::futures::{SinkExt, StreamExt};
 
-    ws.channel(move |mut stream| Box::pin(async move {
-        // while let Some(message) = stream.next().await {
-        //     let _ = stream.send(rocket_ws::Message::Text("Test".to_string())).await;
-        // }
+    let connections = connections.inner().clone();
+    let (tx, mut rx) = mpsc::unbounded_channel::<ws::Message>();
+    connections.register(id, tx);
+
+    ws.channel(move |stream| Box::pin(async move {
+        let (mut sink, mut source) = stream.split();
+
+        let outgoing = async {
+            while let Some(msg) = rx.recv().await {
+                if sink.send(msg).await.is_err() {
+                    break;
+                }
+            }
+        };
+
+        let incoming = async {
+            while let Some(message) = source.next().await {
+                match message {
+                    Ok(msg) => {
+                        // TODO: parse turtle responses/status updates here
+                        dbg!(msg);
+                    }
+                    Err(_) => break,
+                }
+            }
+        };
+
+        rocket::tokio::select! {
+            _ = outgoing => {},
+            _ = incoming => {},
+        }
+
+        connections.unregister(id);
 
         Ok(())
     }))
@@ -232,21 +308,37 @@ async fn index() -> Result<NamedFile, std::io::Error> {
 
 #[derive(FromForm, Debug)]
 struct WebCommand<'r> {
+    id: u16,
     kind: &'r str,
     data: &'r str,
 }
 
-// TODO:
-// Figure out how to make the web command forward to a specific open websocket connection
+// Forwards a form submission to the specific turtle's open websocket connection, if one exists.
 #[post("/web_command", data = "<command>")]
-fn web_command(command: Form<WebCommand<'_>>) {
-    dbg!(command);
+fn web_command(command: Form<WebCommand<'_>>, connections: &State<Arc<TurtleConnections>>) -> Status {
+    let message = ws::Message::Text(format!("{} {}", command.kind, command.data));
+
+    if connections.send_to(command.id, message) {
+        Status::Ok
+    } else {
+        // No open websocket for that turtle id
+        Status::NotFound
+    }
 }
 
 // Handles the control test page
 #[get("/control")]
 async fn control() -> Result<NamedFile, std::io::Error> {
     NamedFile::open("frontend/control_test.html").await
+}
+
+// Handles the control test page
+// We send back json containing data the user may need to manage turtles
+// TODO: Make this live updating in the future (maybe)
+#[get("/connected_ids")]
+fn connected_ids(connections: &State<Arc<TurtleConnections>>) -> json::Json<Vec<u16>> {
+    let connections = connections.get_connected_ids();
+    json::Json(connections)
 }
 
 const LUA_FOLDER: &'static str = "lua";
@@ -256,9 +348,11 @@ fn rocket() -> _ {
     // Creates a new API key if there isn't one
     ApiKey::load_or_new();
     rocket::build()
+    // Initializes the turtle connection manager
+    .manage(Arc::new(TurtleConnections::new()))
     // This hosts all the files in the lua folder, so if we recieve a get request that has /lua/filepath it will go to that filepath
     .mount("/".to_owned()+LUA_FOLDER, FileServer::from(LUA_FOLDER.to_owned()+"/"))
-    .mount("/", routes![register, websocket, index, control, web_command])
+    .mount("/", routes![register, websocket, index, control, web_command, connected_ids])
 }
 
 // TODO:

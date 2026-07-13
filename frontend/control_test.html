@@ -2,17 +2,32 @@
 <html>
 <body>
 
-<h2>HTML Forms</h2>
+<h2>Control Test</h2>
 
-<form action="/web_command" method="post">
-  <label for="name">Command Kind:</label><br>
-  <input type="text" id="kind" name="kind" value=""><br>
-  <label for="name">Contents:</label><br>
-  <input type="text" id="data" name="data" value=""><br><br>
+<script>
+fetch("/connected_ids")
+  .then((response) => response.json())
+  .then((data) => {
+    select = document.getElementById("turtleSelector");
+    for (var i = 0; i < data.length; i++) {
+        var option = document.createElement("option");
+        option.value = data[i];
+        option.textContent = data[i];
+        select.appendChild(option);
+    };
+  });
+</script>
+
+
+<form id="turtleForm" action="/web_command" method="post">
+  <label>Turtle:</label><br>
+  <select id="turtleSelector" name="id"></select><br>
+  <label>Kind:</label><br>
+  <input type="text" name="kind" value=""><br>
+  <label>Contents:</label><br>
+  <input type="text" name="data" value=""><br><br>
   <button type="submit">Submit</button>
 </form>
-
-<p>If you click the "Submit" button, the form data will be sent back to the rust webserver.</p>
 
 </body>
 </html>

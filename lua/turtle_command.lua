@@ -35,8 +35,6 @@ end
 -- Returns kind, response
 -- Kind is always a string representing how to deal with response
 local function parse_response(input)
-    input = input.readAll()
-
     local kind = ""
     local response = ""
     local counter = 0
@@ -100,7 +98,7 @@ local function register()
         error("\nCouldn't register with the server!\nReason: "..fail_reason)
     end
 
-    local kind, response = parse_response(response)
+    local kind, response = parse_response(response.readAll())
     if kind == "status" and response == "successful" then
         print("Registration successful.")
     else
@@ -113,7 +111,8 @@ local function establish_websocket()
     local url, api_key = fetch_conneciton_data()
 
     -- The sub here gets rid of the "https" so that it can be replaced with "ws"
-    local server_address = "ws"..url:sub(5, -1).."/websocket"
+    -- Note: We also submit the ID so the rust server can track which websocket is which
+    local server_address = "ws"..url:sub(5, -1).."/websocket?id="..os.getComputerID()
     print("Establishing websocket connection to "..server_address)
     local socket, fail_reason = http.websocket({url = server_address, timeout = 5, headers = {api_key = api_key}})
 
@@ -146,8 +145,8 @@ end
 -- Handles the terminate event so it shuts down the websocket before terminating
 local function custom_terminate(websocket)
     local event = os.pullEventRaw("terminate")
-    print("Shutting down websocket.")
     websocket.close()
+    print("Websocket shut down.")
     if term.isColor() then
         term.setTextColor(colors.red)
     end
@@ -159,5 +158,5 @@ setup_files()
 register()
 
 local websocket = establish_websocket()
-coroutine.waitForAny(custom_terminate(websocket), websocket_listener(websocket))
+websocket_listener(websocket)
 

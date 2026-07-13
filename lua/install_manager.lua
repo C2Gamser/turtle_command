@@ -18,7 +18,7 @@ for i, v in pairs(download_list) do
     if fail_reason then
         print(fail_reason..". Getting "..v.." failed.")
     else
-        local file = fs.open(v, "w")
+        local file = fs.open("turtle_command/"..v, "w")
         file.write(response.readAll())
         response.close()
         print("Got "..v..".")
