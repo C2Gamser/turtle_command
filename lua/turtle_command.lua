@@ -142,6 +142,38 @@ local function establish_websocket()
     return socket
 end
 
+-- Handles movement instructions
+local function handle_move(data)
+    if data == "turnLeft" or data == "left" or data == "l" then
+        mv.left()
+    elseif data == "turnRight" or data == "right" or data == "r" then
+        mv.right()
+    elseif data == "forward" or data == "f" then
+        turtle.forward()
+    elseif data == "up" or data == "u" then
+        turtle.up()
+    elseif data == "down" or data == "d" then
+        turtle.down()
+    end
+end
+
+-- Handles run length encoding paths
+-- Data should be formatted as such:
+-- (letter)(number) etc...
+-- for example, l4r5u12d1 means left 4, right 5, up 12, down 1
+local function handle_path(data)
+    local raw_list={}
+    data:gsub("%a%d+",function(c) table.insert(raw_list, c) end)
+
+    for i, v in pairs(raw_list) do
+        local action = string.sub(v, 1, 1)
+        local count = string.sub(v, 2, -1)
+        for c = 1, count do
+            handle_move(action)
+        end
+    end
+end
+
 local function handle_websocket_message(event_data, websocket)
     local url = event_data[1]
     local message = event_data[2]
@@ -154,7 +186,13 @@ local function handle_websocket_message(event_data, websocket)
     local kind, data = parse_response(message)
     print("Kind: "..kind.."\n".."Data: "..data)
 
-    -- TODO: Deal with responses
+    if kind == "move" then
+        handle_move(data)
+    elseif kind == "movementPath" then
+        handle_path(data)
+    end
+
+    -- TODO: Deal with more responses
 end
 
 -- Handles the terminate event so it shuts down the websocket before terminating
@@ -169,6 +207,8 @@ local function handle_terminate(websocket)
 end
 
 local function persistent_event_handler(websocket)
+    -- Contains coroutines so we can e.g. handle events and move at the same time
+    local tasks = {}
     while true do
         local event_data = table.pack(os.pullEventRaw())
         local event = table.remove(event_data, 1)
