@@ -11,11 +11,47 @@
 
 /* Make sure to edit the content:url stuff to preload image resources */
 #mainBody {
-  /* background: url(/frontend/resources/images/static-gif-animated-tv.gif); */
-  background-color: #2f2f2f;
-  background-size: cover;
-  color: white;
-  content:url(/frontend/resources/images/buttons/turned_on_green.png) url(/frontend/resources/images/buttons/turned_on_hover_green.png);
+    /* background: url(/frontend/resources/images/static-gif-animated-tv.gif); */
+    background-color: #2f2f2f;
+    background-size: cover;
+    color: white;
+    content:url(/frontend/resources/images/buttons/turned_on_green.png) url(/frontend/resources/images/buttons/turned_on_hover_green.png);
+    text-rendering: optimizeLegibility;
+}
+
+/* Links */
+a {
+    color: #06cff7;
+}
+
+a:hover {
+    color: #04aeeb;
+    font-style: italic;
+}
+
+a:active {
+    color: #0281af;
+    font-style: italic;
+}
+
+input{
+    background-color: #c7c86e;
+    border-color: rgb(153, 147, 80);
+    border-radius: 0.2em;
+    border-width: 0.25em;
+    background-image:0;
+}
+
+button{
+    background-color: #c7c86e;
+    border-color: #c7c86e;
+    border-radius: 0.4em;
+}
+
+#submitCommandButton{
+    background-color: #c7c86e;
+    border-color: #c7c86e;
+    border-radius: 0em;
 }
 
 .powerButton{
@@ -24,9 +60,7 @@
 
     border-radius: 0.4em;
     background-image: url(/frontend/resources/images/buttons/turned_on_green.png);
-    background-color: #c7c86e;
     background-repeat: no-repeat;
-    border-color: #c7c86e;
     image-rendering: pixelated;
     background-size: 2.4em;
     background-position: 0.2em;
@@ -36,9 +70,18 @@
 
 .powerButton:hover {
     background-image: url(/frontend/resources/images/buttons/turned_on_hover_green.png);
-    background-color: #87884a;
+    background-color: #e0e27d;
+    border-color: #e0e27d;
     background-repeat: no-repeat;
+    filter: drop-shadow(0 0 0.55rem #c7c86e);
 }
+
+.powerButton:active {
+    background-image: url(/frontend/resources/images/buttons/turned_on_hover_green.png);
+    background-position-x: 0.25em;
+    background-position-y: 0.25em;
+}
+
 .turtle {
     width: 300px;
     border: 5px solid #c7c86e;
@@ -54,16 +97,8 @@
 .turtleBoxGrid {
     display: grid;
     grid-template-columns: 2.5em auto;
-    /* background-color: dodgerblue; */
-    /* padding: 0px; */
-    /* column-gap: 0px; */
-    /* align-self: left; */
 }
+
 .Grid {
     display: grid;
-    /* grid-template-columns: 1.7em auto;
-    /* background-color: dodgerblue; */
-    /* padding: 0px; */
-    /* column-gap: 0px; */
-    /* align-self: left; */
 }
