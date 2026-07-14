@@ -1,5 +1,8 @@
 <!DOCTYPE html>
 <html>
+<head>
+  <script src="/frontend/scripts/main.js"></script>
+</head>
 <body>
 
 <h2>Control Test</h2>
@@ -9,6 +12,7 @@ fetch("/connected_ids")
   .then((response) => response.json())
   .then((data) => {
     select = document.getElementById("turtleSelector");
+
     for (var i = 0; i < data.length; i++) {
       var option = document.createElement("option");
       option.value = data[i];
@@ -28,6 +32,11 @@ fetch("/connected_ids")
   <input type="text" name="data" value=""><br><br>
   <button type="submit">Submit</button>
 </form>
+
+<h2>Turtles</h2>
+<section id="turtleContainer">
+
+</section>
 
 </body>
 </html>

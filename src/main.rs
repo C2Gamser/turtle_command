@@ -431,6 +431,12 @@ async fn index() -> Result<NamedFile, std::io::Error> {
     NamedFile::open("frontend/front_page.html").await
 }
 
+// Handles the front page
+#[get("/favicon.ico")]
+async fn serve_favicon() -> Result<NamedFile, std::io::Error> {
+    NamedFile::open("frontend/resources/favicon.ico").await
+}
+
 #[derive(FromForm, Debug)]
 struct WebCommand<'r> {
     id: u16,
@@ -466,8 +472,10 @@ fn connected_ids(connections: &State<Arc<TurtleConnections>>) -> json::Json<Vec<
     json::Json(connections)
 }
 
-const LUA_FOLDER: &'static str = "lua";
-const WORLD_FOLDER: &'static str = "world_data";
+const LUA_FOLDER: &str = "lua";
+const WORLD_FOLDER: &str = "world_data";
+const TURTLES_FOLDER: &str = "turtles";
+const SCRIPTS_FOLDER: &str = "frontend/scripts";
 
 #[launch]
 fn rocket() -> _ {
@@ -481,7 +489,12 @@ fn rocket() -> _ {
     .manage(Arc::new(TurtleConnections::new()))
     // This hosts all the files in the lua folder, so if we recieve a get request that has /lua/filepath it will go to that filepath
     .mount("/".to_owned()+LUA_FOLDER, FileServer::from(LUA_FOLDER.to_owned()+"/"))
-    .mount("/", routes![websocket, index, control, web_command, connected_ids])
+    // This hosts the files in the scripts folder for easy script frontend access
+    .mount("/".to_owned()+SCRIPTS_FOLDER, FileServer::from(SCRIPTS_FOLDER.to_owned()+"/"))
+    // This hosts all the turtle data for easy frontend access
+    .mount("/".to_owned()+TURTLES_FOLDER, FileServer::from(TURTLES_FOLDER.to_owned()+"/"))
+
+    .mount("/", routes![websocket, index, control, web_command, connected_ids, serve_favicon])
 }
 
 // TODO:
