@@ -95,6 +95,20 @@ class Turtle {
     }
 }
 
+// Gets a list of connected turtle ids
+fetch("/connected_ids")
+  .then((response) => response.json())
+  .then((data) => {
+    select = document.getElementById("turtleSelector");
+
+    for (var i = 0; i < data.length; i++) {
+      var option = document.createElement("option");
+      option.value = data[i];
+      option.textContent = data[i];
+      select.appendChild(option);
+    };
+  });
+
 // Standin for temporary debug pourpuses
 fetch("/turtles/0.json")
   .then((response) => response.json())

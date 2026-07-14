@@ -431,10 +431,16 @@ async fn index() -> Result<NamedFile, std::io::Error> {
     NamedFile::open("frontend/front_page.html").await
 }
 
-// Handles the front page
+// Handles serving the favicon
 #[get("/favicon.ico")]
 async fn serve_favicon() -> Result<NamedFile, std::io::Error> {
     NamedFile::open("frontend/resources/favicon.ico").await
+}
+
+// Handles the control test page
+#[get("/control")]
+async fn control() -> Result<NamedFile, std::io::Error> {
+    NamedFile::open("frontend/control_test.html").await
 }
 
 #[derive(FromForm, Debug)]
@@ -456,12 +462,6 @@ fn web_command(command: Form<WebCommand<'_>>, connections: &State<Arc<TurtleConn
         // No open websocket for that turtle id
         Status::NotFound
     }
-}
-
-// Handles the control test page
-#[get("/control")]
-async fn control() -> Result<NamedFile, std::io::Error> {
-    NamedFile::open("frontend/control_test.html").await
 }
 
 // We send back json containing data the user may need to manage turtles

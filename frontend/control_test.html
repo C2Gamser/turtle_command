@@ -7,22 +7,6 @@
 
 <h2>Control Test</h2>
 
-<script>
-fetch("/connected_ids")
-  .then((response) => response.json())
-  .then((data) => {
-    select = document.getElementById("turtleSelector");
-
-    for (var i = 0; i < data.length; i++) {
-      var option = document.createElement("option");
-      option.value = data[i];
-      option.textContent = data[i];
-      select.appendChild(option);
-    };
-  });
-</script>
-
-
 <form target="_blank" id="turtleForm" action="/web_command" method="post">
   <label>Turtle:</label><br>
   <select id="turtleSelector" name="id"></select><br>
