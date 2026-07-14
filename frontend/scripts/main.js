@@ -28,9 +28,17 @@ class Slot {
 }
 
 class Inventory {
-    constructor(size, slots) {
+    constructor(size, slot_list) {
         this.size = size;
-        this.slots = slots;
+        this.slots = [];
+        for (let i of slot_list) {
+            if (i == null) {
+                this.slots.push(new Slot("Empty", 0))
+            } else {
+                this.slots.push(new Slot(i.name, i.count))
+            }
+
+        }
     }
 }
 
@@ -53,7 +61,7 @@ class Turtle {
 
         this.fuel = fuel;
         this.id = id;
-        this.inventory = inventory;
+        this.inventory = new Inventory(inventory.size, inventory.slots);
     }
 
       // Getter
@@ -91,6 +99,30 @@ class Turtle {
         elem.innerText = "Fuel: "+this.fuel;
         turtle_div.appendChild(elem);
 
+        // Inventory
+        // elem = document.createElement("div");
+        // elem.id = "inventory";
+        // elem.class = "inventoryContainer";
+        // elem.innerText = "Inventory: ";
+        // turtle_div.appendChild(elem);
+        // // Inventory fulfillment center
+        // for (let i = 0; i < this.inventory.size; i ++) {
+        //     let elem2 = document.createElement("div");
+
+        //     if (this.inventory.slots[i] == null) {
+        //         elem2.innerText = "Empty"
+        //     } else {
+        //         elem2.innerText = this.inventory.slots[i].toString()
+        //     }
+
+        //     elem.appendChild(elem2)
+        // }
+
+        elem = document.createElement("div");
+        elem.id = "sidebar";
+        elem.innerText = "TEST";
+        turtle_div.appendChild(elem)
+
         return turtle_div
     }
 }
@@ -116,5 +148,8 @@ fetch("/turtles/0.json")
     let r = data;
     console.log(r)
     let this_turtle = new Turtle(r.connected, r.coordinates, r.equipped_left, r.equipped_right, r.fuel, r.id, r.inventory);
-    document.getElementById("turtleContainer").appendChild(this_turtle.div);
+    let turtle_flex = document.createElement("div");
+
+    turtle_flex.appendChild(this_turtle.div)
+    document.getElementById("turtleContainer").appendChild(turtle_flex);
   });
