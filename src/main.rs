@@ -1,8 +1,9 @@
 use rocket::form::Form;
-use rocket::fs::{FileServer, NamedFile, TempFile};
+use rocket::fs::{FileServer, NamedFile};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::ffi::OsString;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::{path::Path};
 use uuid::{Uuid};
@@ -312,6 +313,7 @@ struct TurtleRegistrationData {
     fuel: i16
 }
 
+// Registers a turtle's data, used to update turtle data files currently
 fn ws_register(reg_data: &String, connections: &Arc<TurtleConnections>) {
     let reg_data: TurtleRegistrationData = json::from_str(&reg_data).unwrap();
 
@@ -328,6 +330,22 @@ fn ws_register(reg_data: &String, connections: &Arc<TurtleConnections>) {
     Turtle::save(&new_turtle);
     let response = TurtleReadable::new("status", "successful").to_ws_message();
     connections.send_to(reg_data.id, response);
+}
+
+// Recieves blocks from the turtles to be stored in chunk files
+fn ws_sendblocks(reg_data: &String) {
+    let blocks: Vec<(BlockData, Coordinate)> = json::from_str(&reg_data).unwrap();
+
+    for block in blocks.iter() {
+        let world_coords = Coordinate::new(block.1.x, block.1.y, block.1.z);
+        let chunk_coords = world_coords.world_to_chunk_coords();
+
+        let mut chunk = Chunk::load_or_new(&WORLD_FOLDER, &chunk_coords);
+        let local_coords = world_coords.world_to_local_coords();
+
+        chunk.set_block(&local_coords, &BlockData { name: block.0.name.clone(), states: block.0.states.clone() });
+        chunk.save(&WORLD_FOLDER);
+    }
 }
 
 // NOTE: Partially created with AI
@@ -379,9 +397,13 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
                     Ok(message) => {
                         let _ = match message.instruction.as_str()  {
                         "register" => ws_register(&message.data, &connections),
+                        "sendBlocks" => ws_sendblocks(&message.data),
 
                         // Unexpected result, we just ignore it
-                        _ => continue
+                        _ => {
+                            println!("Recieved unexpected websocket result. Ignoring.");
+                            continue
+                        }
                         };
                     }
 
@@ -444,9 +466,13 @@ fn connected_ids(connections: &State<Arc<TurtleConnections>>) -> json::Json<Vec<
 }
 
 const LUA_FOLDER: &'static str = "lua";
+const WORLD_FOLDER: &'static str = "world_data";
 
 #[launch]
 fn rocket() -> _ {
+    // Creates the world data folder if it doesnt exist
+    let path = PathBuf::from(WORLD_FOLDER);
+    let _ = fs::create_dir(&path);
     // Creates a new API key if there isn't one
     ApiKey::load_or_new();
     rocket::build()
@@ -459,6 +485,5 @@ fn rocket() -> _ {
 
 // TODO:
 // Implement pings on the rust side to make sure the connection is active
-// Implement commands on the rust side to control the turtle (just the basics like moving)
 // See if you can move over the pathfinding and world exploration code from the turtleswarm project
 // Add a login system so only people who are authorized can send commands to turtles (maybe)
