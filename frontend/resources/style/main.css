@@ -1,0 +1,69 @@
+@font-face {
+    font-family: "Mojangles";
+    src: url(/frontend/resources/fonts/minecraftfont.woff) format("woff");
+    font-weight: normal;
+    font-style: normal;
+}
+
+* {
+    font-family: "Mojangles", Arial, Helvetica, sans-serif;
+}
+
+/* Make sure to edit the content:url stuff to preload image resources */
+#mainBody {
+  /* background: url(/frontend/resources/images/static-gif-animated-tv.gif); */
+  background-color: #2f2f2f;
+  background-size: cover;
+  color: white;
+  content:url(/frontend/resources/images/buttons/turned_on_green.png) url(/frontend/resources/images/buttons/turned_on_hover_green.png);
+}
+
+.powerButton{
+    width: 3.4em;
+    height: 3em;
+
+    border-radius: 0.4em;
+    background-image: url(/frontend/resources/images/buttons/turned_on_green.png);
+    background-color: #c7c86e;
+    background-repeat: no-repeat;
+    border-color: #c7c86e;
+    image-rendering: pixelated;
+    background-size: 2.4em;
+    background-position: 0.2em;
+
+    margin-top: 1em;
+}
+
+.powerButton:hover {
+    background-image: url(/frontend/resources/images/buttons/turned_on_hover_green.png);
+    background-color: #87884a;
+    background-repeat: no-repeat;
+}
+.turtle {
+    width: 300px;
+    border: 5px solid #c7c86e;
+    border-radius: 5px;
+    padding: 10px;
+    /* box-shadow: black 00px 0px 10px; */
+    background: #000000;
+    color: white;
+    word-wrap: break-word;
+    backdrop-filter: blur(10px) brightness(0.75);
+}
+
+.turtleBoxGrid {
+    display: grid;
+    grid-template-columns: 2.5em auto;
+    /* background-color: dodgerblue; */
+    /* padding: 0px; */
+    /* column-gap: 0px; */
+    /* align-self: left; */
+}
+.Grid {
+    display: grid;
+    /* grid-template-columns: 1.7em auto;
+    /* background-color: dodgerblue; */
+    /* padding: 0px; */
+    /* column-gap: 0px; */
+    /* align-self: left; */
+}

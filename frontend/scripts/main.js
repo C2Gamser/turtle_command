@@ -67,7 +67,8 @@ class Turtle {
       // Getter
     get div() {
         let turtle_div = document.createElement("div");
-        turtle_div.id = "turtleDiv"+this.id;
+        turtle_div.id = this.id;
+        turtle_div.classList.add("turtle")
 
         // ID
         let elem = document.createElement("div");
@@ -118,9 +119,7 @@ class Turtle {
         //     elem.appendChild(elem2)
         // }
 
-        elem = document.createElement("div");
-        elem.id = "sidebar";
-        elem.innerText = "TEST";
+
         turtle_div.appendChild(elem)
 
         return turtle_div
@@ -147,9 +146,21 @@ fetch("/turtles/0.json")
   .then((data) => {
     let r = data;
     console.log(r)
-    let this_turtle = new Turtle(r.connected, r.coordinates, r.equipped_left, r.equipped_right, r.fuel, r.id, r.inventory);
+    // Sets up the turtle box which contains a single turtle and the power button
     let turtle_flex = document.createElement("div");
+    turtle_flex.classList.add("turtleBoxGrid")
 
+    // Creates a button inside the turtle box
+    let turtle_button = document.createElement("button");
+    turtle_button.id = "turtlePowerButton";
+    turtle_button.classList.add("powerButton")
+    // turtle_button.textContent = "P";
+    turtle_flex.appendChild(turtle_button);
+
+    // Creates a turtle inside the turtle box
+    let this_turtle = new Turtle(r.connected, r.coordinates, r.equipped_left, r.equipped_right, r.fuel, r.id, r.inventory);
     turtle_flex.appendChild(this_turtle.div)
+
     document.getElementById("turtleContainer").appendChild(turtle_flex);
+    document.getElementById("turtleContainer").classList.add("turtleContainerGrid")
   });

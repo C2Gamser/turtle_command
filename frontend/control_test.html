@@ -2,27 +2,12 @@
 <html>
 <head>
   <script src="/frontend/scripts/main.js"></script>
-  <style>
-    body {
-      background: #2f2f2f;
-      color: white;
-    }
-
-    #turtleContainer {
-      width: 300px;
-      border: 5px solid #c7c86e;
-      border-radius: 5px;
-      padding: 10px;
-      box-shadow: black 00px 0px 10px;
-      background: #101010;
-      color: white;
-      backdrop-filter: blur(10px) brightness(0.75);
-    }
-  </style>
+  <link rel="stylesheet" href="/frontend/resources/style/main.css">
+  <link rel="preload" type="image" href="/frontend/resources/images/buttons/turned_on_hover.png">
 </head>
-<body>
+<body id="mainBody">
 
-<h2>Control Test</h2>
+<div style="font-size:1.5em;" >Control Test</div>
 
 <form target="_blank" id="turtleForm" action="/web_command" method="post">
   <label>Turtle:</label><br>
@@ -34,10 +19,13 @@
   <button type="submit">Submit</button>
 </form>
 
-<h2>Turtles</h2>
-<section id="turtleContainer">
+<div style="font-size:1.5em;">Turtles</div>
+<div class="grid">
+  <section id="turtleContainer">
+  </section>
 
-</section>
+</div>
+
 
 </body>
 </html>

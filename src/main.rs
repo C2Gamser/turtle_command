@@ -434,7 +434,7 @@ async fn index() -> Result<NamedFile, std::io::Error> {
 // Handles serving the favicon
 #[get("/favicon.ico")]
 async fn serve_favicon() -> Result<NamedFile, std::io::Error> {
-    NamedFile::open("frontend/resources/favicon.ico").await
+    NamedFile::open("frontend/resources/images/favicon.ico").await
 }
 
 // Handles the control test page
@@ -476,6 +476,7 @@ const LUA_FOLDER: &str = "lua";
 const WORLD_FOLDER: &str = "world_data";
 const TURTLES_FOLDER: &str = "turtles";
 const SCRIPTS_FOLDER: &str = "frontend/scripts";
+const RESOURCE_FOLDER: &str = "frontend/resources/";
 
 #[launch]
 fn rocket() -> _ {
@@ -493,6 +494,8 @@ fn rocket() -> _ {
     .mount("/".to_owned()+SCRIPTS_FOLDER, FileServer::from(SCRIPTS_FOLDER.to_owned()+"/"))
     // This hosts all the turtle data for easy frontend access
     .mount("/".to_owned()+TURTLES_FOLDER, FileServer::from(TURTLES_FOLDER.to_owned()+"/"))
+    // This hosts all the files in the resources folder for easy frontend access
+    .mount("/".to_owned()+RESOURCE_FOLDER, FileServer::from(RESOURCE_FOLDER.to_owned()+"/"))
 
     .mount("/", routes![websocket, index, control, web_command, connected_ids, serve_favicon])
 }
