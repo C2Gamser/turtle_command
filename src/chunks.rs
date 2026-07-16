@@ -7,8 +7,8 @@ use crate::coordinates::Coordinate;
 #[derive(Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct Chunk {
-    coordinates: Coordinate,
-    block_data: Vec<Vec<Vec<BlockData>>>
+    pub coordinates: Coordinate,
+    pub block_data: Vec<Vec<Vec<BlockData>>>
 }
 
 impl Chunk {
@@ -85,22 +85,22 @@ pub struct BlockData {
 #[derive(Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]
 pub struct WhitelistMap {
-    map: HashSet<String>,
+    pub map: HashSet<String>,
 
     #[serde(skip)]
-    path: PathBuf
+    pub path: PathBuf
 }
 
 impl WhitelistMap {
         /// Makes a new WhitelistMap
-        fn new<P: AsRef<Path>>(path: &P) -> Self {
+        pub fn new<P: AsRef<Path>>(path: &P) -> Self {
             let path = path.as_ref().to_path_buf();
             let mut map = HashSet::new();
             map.insert("minecraft:air".to_string());
             Self {path, map}
         }
 
-        fn load<P: AsRef<Path>>(path: &P) -> Self {
+        pub fn load<P: AsRef<Path>>(path: &P) -> Self {
             let path = path.as_ref();
 
             let mut temp_self: Self = json::from_str(&fs::read_to_string(path).unwrap()).unwrap();
@@ -108,7 +108,7 @@ impl WhitelistMap {
             temp_self
         }
 
-        fn load_or_new<P: AsRef<Path>>(path: &P) -> Self {
+        pub fn load_or_new<P: AsRef<Path>>(path: &P) -> Self {
             let path = path.as_ref();
             if path.exists() {
                 Self::load(&path)
@@ -117,7 +117,7 @@ impl WhitelistMap {
             }
         }
 
-        fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
+        pub fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
             _ = fs::write(&self.path, json::to_pretty_string(self).unwrap());
             Ok(())
         }

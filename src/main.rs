@@ -11,7 +11,8 @@ use rocket_ws as ws;
 mod chunks;
 mod turtle_data;
 mod coordinates;
-use chunks::{Chunk, BlockData};
+mod astar;
+use chunks::{Chunk, BlockData, WhitelistMap};
 use coordinates::Coordinate;
 use turtle_data::{Turtle, Slot, Inventory};
 #[macro_use] extern crate rocket;
@@ -301,6 +302,10 @@ fn rocket() -> _ {
     // Creates the world data folder if it doesnt exist
     let path = PathBuf::from(WORLD_FOLDER);
     let _ = fs::create_dir(&path);
+
+    let whitelist = WhitelistMap::load_or_new(&path.join("whitelist"));
+    whitelist.save().unwrap();
+
     // Creates a new API key if there isn't one
     ApiKey::load_or_new();
     rocket::build()
