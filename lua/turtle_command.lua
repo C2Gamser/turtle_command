@@ -235,10 +235,21 @@ end
 
 -- Sends a post request with all the turtle's data
 local function ws_register(websocket)
-    if not websocket then
-        print("A")
-    end
     local send_data = fetch_own_status()
+
+    -- Sets up the inventory to be correctly formatted
+    send_data["inventory"] = {send_data.inventory_size, send_data.inventory_contents}
+    send_data.inventory_contents = nil
+    send_data.inventory_size = nil
+
+    -- Makes sure that empty inventory slots are still counted as null when serialized to json
+    for i = 1, 16 do
+        if send_data.inventory[2][i] == nil then
+            send_data.inventory[2][i] = textutils.json_null
+        end
+    end
+
+
     local message = format_message("register", textutils.serialiseJSON(send_data))
     websocket.send(message)
 end

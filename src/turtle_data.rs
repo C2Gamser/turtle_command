@@ -1,4 +1,4 @@
-use std::{ffi::OsString, fs, convert::From};
+use std::{ffi::OsString, fs};
 
 use rocket::serde::json;
 
@@ -20,16 +20,7 @@ impl Inventory {
     pub fn new(size: u32, contents: Option<Vec<Option<Slot>>>) -> Self {
         match contents {
             Some(contents) => {
-                let mut new_inventory = Inventory {size: size, slots: (contents) };
-                let deficit = new_inventory.size - (new_inventory.slots.len() as u32);
-
-                if deficit > 0 {
-                    // Fills the rest of the array with None if it isnt full
-
-                    let mut slice: Vec<Option<Slot>> = vec![None;deficit as usize];
-                    new_inventory.slots.append(&mut slice);
-                }
-                new_inventory
+                Inventory {size: size, slots: (contents)}
             }
 
             None => Self::new_empty(size)
@@ -38,16 +29,6 @@ impl Inventory {
 
     pub fn new_empty(size: u32) -> Self {
         Inventory { size: size, slots: vec![None; size.try_into().unwrap()] }
-    }
-}
-
-impl From<(u32, Option<Vec<Option<Slot>>>)> for Inventory {
-    fn from(inventory_precursor: (u32, Option<Vec<Option<Slot>>>)) -> Self {
-        match inventory_precursor.1 {
-            Some(contents) => Inventory { size: inventory_precursor.0, slots: contents},
-            None => Self::new_empty(inventory_precursor.0)
-        }
-
     }
 }
 

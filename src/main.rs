@@ -141,30 +141,9 @@ impl<'r> FromRequest<'r> for ApiKey {
     }
 }
 
-#[derive(Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
-struct TurtleRegistrationData {
-    id: u16,
-    connected: bool,
-    inventory_contents: Option<Vec<Option<Slot>>>,
-    equipped_left: Option<Slot>,
-    equipped_right: Option<Slot>,
-    coordinates: Coordinate,
-    fuel: i16
-}
-
 // Registers a turtle's data, used to update turtle data files currently
 fn ws_register(reg_data: &String, connections: &Arc<TurtleConnections>) {
     let reg_data: Turtle = json::from_str(&reg_data).unwrap();
-
-    // let new_turtle = Turtle {
-    //     id: reg_data.id,
-    //     connected: reg_data.connected,
-    //     inventory: (16, reg_data.inventory_contents).into(),
-    //     equipped_left: reg_data.equipped_left.clone(),
-    //     equipped_right: reg_data.equipped_right.clone(),
-    //     coordinates: reg_data.coordinates.clone(),
-    //     fuel: reg_data.fuel
-    // };
 
     reg_data.save();
     let response = TurtleReadable::new("status", "successful").to_ws_message();
