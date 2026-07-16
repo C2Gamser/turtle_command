@@ -182,7 +182,8 @@ function thready.main_loop()
   thready.running = true
   thread_context.debug("Thready started.")
   while thready.running do
-    local event_data = table.pack(os.pullEvent())
+    -- NOTE BY C2: Modified to be pullEventRaw!
+    local event_data = table.pack(os.pullEventRaw())
 
     -- spawn listeners
     -- NOTE BY C2: The first argument passed to all listeners is the global websocket!
