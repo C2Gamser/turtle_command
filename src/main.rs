@@ -15,6 +15,7 @@ mod astar;
 use chunks::{Chunk, BlockData, WhitelistMap};
 use coordinates::Coordinate;
 use turtle_data::{Turtle, Slot, Inventory};
+use astar::pathfind;
 #[macro_use] extern crate rocket;
 
 
@@ -142,11 +143,116 @@ impl<'r> FromRequest<'r> for ApiKey {
     }
 }
 
+// Turns a string like "dlllrrrruudr" into "dl3r4u2dr"
+fn run_length_encode_string(input: &String) -> String {
+    let mut final_string = "".to_string();
+
+    let mut chars = input.chars();
+
+    let mut last_char = chars.next().unwrap();
+
+    let mut counter = 1;
+
+    for (pos, char) in chars.enumerate() {
+        if last_char == char {
+            counter += 1
+        } else {
+            if counter == 1 {
+                final_string.push_str(&last_char.to_string());
+            } else {
+                final_string.push_str(&format!("{}{}",last_char,counter));
+            }
+            counter = 1
+        }
+
+        if pos == input.len() - 2 {
+            if counter == 1 {
+                final_string.push_str(&char.to_string());
+            } else {
+                final_string.push_str(&format!("{}{}",last_char,counter));
+
+            }
+        }
+
+        last_char = char;
+    }
+
+    final_string
+}
+
+// The string this outputs should be able to be sent to the turtle as movementPath command data
+// If it cant find a path it returns none
+fn get_path(whitelist: WhitelistMap, from: Coordinate, to: Coordinate, turtle_facing: &String) -> Option<String> {
+    let path = pathfind(&from, &to, whitelist);
+    let mut turtle_direction = turtle_facing.as_str();
+
+    match path {
+        // A path was found
+        Some(path_cost) => {
+            let mut instructions = "".to_string();
+
+            // path_cost.0 is the path formatted as a bunch of (basically) coordinates as X, Y and Z, path_cost.1 is the calculated cost of the path, dependent on the astar algorithm cost function + path length
+            let pos_list = &path_cost.0;
+            for i in 1..pos_list.len() {
+                // We start at 1 because the start of the path is where the turtle already is
+                let last = &pos_list[i-1];
+                let current = &pos_list[i];
+
+                let direction_moved = (current.0 - last.0, current.1 - last.1, current.2 - last.2, turtle_direction);
+
+                // This match statement essentially turns a list of coordinates into a list of moves from the POV of the turtle
+                // Key
+                // u = up, d = down, f = forward, r = turn right, l = turn left
+                let direction_moved: (&str, &str) = match direction_moved {
+                    (0, 1, 0, _) => ("u",turtle_direction),
+                    (0, -1, 0, _) => ("d",turtle_direction),
+
+                    (-1, 0, 0, "w") => ("f","w"),
+                    (-1, 0, 0, "n") => ("lf","w"),
+                    (-1, 0, 0, "s") => ("rf","w"),
+                    (-1, 0, 0, "e") => ("llf","w"),
+
+                    (1, 0, 0, "e") => ("f","e"),
+                    (1, 0, 0, "s") => ("lf","e"),
+                    (1, 0, 0, "n") => ("rf","e"),
+                    (1, 0, 0, "w") => ("llf","e"),
+
+                    (0, 0, -1, "n") => ("f","n"),
+                    (0, 0, -1, "e") => ("lf","n"),
+                    (0, 0, -1, "w") => ("rf","n"),
+                    (0, 0, -1, "s") => ("llf","n"),
+
+                    (0, 0, 1, "s") => ("f","s"),
+                    (0, 0, 1, "w") => ("lf","s"),
+                    (0, 0, 1, "e") => ("rf","s"),
+                    (0, 0, 1, "n") => ("llf","s"),
+
+                    _ => ("ERR", "ERR")
+                };
+
+                turtle_direction = direction_moved.1;
+
+                instructions.push_str(direction_moved.0);
+            }
+
+            Some(run_length_encode_string(&instructions))
+        }
+
+        // No path could be found
+        None    => {
+            println!("No path found from {:?} to {:?}!", from, to);
+            None
+        }
+    }
+}
+
+
+
 // Registers a turtle's data, used to update turtle data files currently
 fn ws_register(reg_data: &String, connections: &Arc<TurtleConnections>) {
     let reg_data: Turtle = json::from_str(&reg_data).unwrap();
 
-    reg_data.save();
+    reg_data.save(TURTLES_FOLDER.into());
     let response = TurtleReadable::new("status", "successful").to_ws_message();
     connections.send_to(reg_data.id, response);
 }
@@ -303,6 +409,8 @@ fn rocket() -> _ {
     let path = PathBuf::from(WORLD_FOLDER);
     let _ = fs::create_dir(&path);
 
+    dbg!(run_length_encode_string(&"dlllrrrruudr".to_string()));
+
     let whitelist = WhitelistMap::load_or_new(&path.join("whitelist"));
     whitelist.save().unwrap();
 
@@ -327,3 +435,4 @@ fn rocket() -> _ {
 // Implement pings on the rust side to make sure the connection is active
 // See if you can move over the pathfinding and world exploration code from the turtleswarm project
 // Add a login system so only people who are authorized can send commands to turtles (maybe)
+// Add world file importing

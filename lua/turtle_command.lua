@@ -352,6 +352,9 @@ end
 local function persistent_event_handler(websocket)
     -- Contains coroutines so we can e.g. handle events and move at the same time
     local tasks = {}
+
+    
+
     while true do
         local event_data = table.pack(os.pullEventRaw())
         local event = table.remove(event_data, 1)

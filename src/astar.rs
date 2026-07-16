@@ -80,6 +80,7 @@ pub fn pathfind(start: &Coordinate, goal: &Coordinate, whitelist: WhitelistMap) 
         if goal == check_pos {
             true
         } else {
+            // Limits the max distance per astar path to 200 blocks travelled as otherwise it may take a long time to calculate
             if start_pos.0.abs_diff(check_pos.0) + start_pos.1.abs_diff(check_pos.1) + start_pos.2.abs_diff(check_pos.2) >= 200 {
                 true
             } else {
