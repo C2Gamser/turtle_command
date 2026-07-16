@@ -34,7 +34,7 @@ local function setup_files()
 
     if not fs.exists("turtle_command/keep_alive_time.txt") then
         local file = fs.open("turtle_command/keep_alive_time.txt","w")
-        file.write("4")
+        file.write("6")
         file.close()
     end
 
@@ -367,8 +367,6 @@ local function handle_websocket_message(websocket, event_name, url, message, is_
     elseif kind == "testBlockSend" then -- DEBUG
         append_inspect_all()
         send_block_cache(websocket)
-    elseif kind == "keepAliveTime" then
-        mv.rewrite_file(tonumber(data))
     elseif kind == "closingConnection" then
         print("Server closed connection.")
         handle_terminate(websocket)
@@ -380,7 +378,7 @@ end
 local function keep_alive_ping(websocket)
     while true do
         websocket.send(format_message("ping", "ping"))
-        os.sleep(mv.read_first_line("turtle_command/keep_alive_time.txt"))
+        os.sleep(tonumber(mv.read_first_line("turtle_command/keep_alive_time.txt")))
     end
 end
 

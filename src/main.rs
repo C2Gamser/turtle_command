@@ -291,8 +291,6 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
     let (tx, mut rx) = mpsc::unbounded_channel::<ws::Message>();
     connections.register(id, tx);
 
-    connections.send_to(id, TurtleReadable::new("keepAliveTime", "4").to_ws_message());
-
     ws.channel(move |stream| Box::pin(async move {
         let (mut sink, mut source) = stream.split();
 
