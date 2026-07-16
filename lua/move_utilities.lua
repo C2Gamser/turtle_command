@@ -31,6 +31,7 @@ local function turnLeft()
     end
     turtle.turnLeft()
     rewrite_file(facing_filepath, rewrite_with)
+    return true
 end
 
 -- Updates the direction file when turning right
@@ -46,9 +47,10 @@ local function turnRight()
     elseif dir == "w" then
         rewrite_with = "n"
     end
+
     turtle.turnRight()
     rewrite_file(facing_filepath, rewrite_with)
-
+    return true
 end
 
 -- Takes in a URL and compares it to our target URL

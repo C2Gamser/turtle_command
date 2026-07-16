@@ -1,5 +1,7 @@
+use rocket::{Config, tokio};
 use rocket::form::Form;
 use rocket::fs::{FileServer, NamedFile};
+use rocket::response::stream::EventStream;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, path::PathBuf, path::Path, vec, fs};
 use std::sync::{Arc, Mutex};
@@ -7,6 +9,7 @@ use uuid::{Uuid};
 use rocket::{http::Status, serde::json, State};
 use rocket::request::{FromRequest, Request, Outcome};
 use rocket::tokio::sync::mpsc;
+use rocket::tokio::time::{Duration, interval, timeout};
 use rocket_ws as ws;
 mod chunks;
 mod turtle_data;
@@ -87,7 +90,7 @@ impl TurtleReadable {
     }
 }
 
-// NOTE: Pattially created with AI
+// NOTE: This function is partially created with AI :(
 // Registry that maps a turtle's id to a sender half of an mpsc channel.
 // Any route (e.g. web_command) can grab this shared, managed state and push
 // a message onto a specific turtle's channel. The websocket task for that
@@ -118,6 +121,7 @@ impl TurtleConnections {
             false
         }
     }
+
 
     fn get_connected_ids(&self) -> Vec<u16> {
         let senders_vec = self.senders.lock().unwrap().keys().copied().collect();
@@ -246,8 +250,6 @@ fn get_path(whitelist: WhitelistMap, from: Coordinate, to: Coordinate, turtle_fa
     }
 }
 
-
-
 // Registers a turtle's data, used to update turtle data files currently
 fn ws_register(reg_data: &String, connections: &Arc<TurtleConnections>) {
     let reg_data: Turtle = json::from_str(&reg_data).unwrap();
@@ -273,7 +275,7 @@ fn ws_receive_blocks(reg_data: &String) {
     }
 }
 
-// NOTE: Partially created with AI
+// NOTE: This function is partially created with AI :(
 // Starts a websocket connection with a turtle.
 // Turtles connect with their id in the query string, e.g. `/websocket?id=5`
 // We register an mpsc sender for that id in the shared TurtleConnections state, then run two loops concurrently:
@@ -289,6 +291,8 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
     let (tx, mut rx) = mpsc::unbounded_channel::<ws::Message>();
     connections.register(id, tx);
 
+    connections.send_to(id, TurtleReadable::new("keepAliveTime", "4").to_ws_message());
+
     ws.channel(move |stream| Box::pin(async move {
         let (mut sink, mut source) = stream.split();
 
@@ -301,9 +305,20 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
         };
 
         let incoming = async {
-            while let Some(message) = source.next().await {
-                // Verify that the message is ok
+            loop {
+                let message = timeout(Duration::from_secs(8), source.next()).await;
+
+                // If we timed out
                 let Ok(message) = message else {
+                    println!("Connection timed out with turtle ID {}, closing.",id);
+                    connections.send_to(id, TurtleReadable::new("closingConnection", "closing").to_ws_message());
+                    let mut close_timer = interval(Duration::from_secs(1));
+                    close_timer.tick().await;
+                    break
+                };
+
+                // Verify that the message is ok
+                let Some(Ok(message)) = message else {
                     break
                 };
 
@@ -324,6 +339,7 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
                         let _ = match message.instruction.as_str()  {
                         "register" => ws_register(&message.data, &connections),
                         "sendBlocks" => ws_receive_blocks(&message.data),
+                        "ping" => {},
 
                         // Unexpected result, we just ignore it
                         _ => {
@@ -335,9 +351,9 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
 
                     Err(_) => println!("Error parsing json. Ignoring.")
                 }
-
             }
         };
+
 
         rocket::tokio::select! {
             _ = outgoing => {},
@@ -409,13 +425,12 @@ fn rocket() -> _ {
     let path = PathBuf::from(WORLD_FOLDER);
     let _ = fs::create_dir(&path);
 
-    dbg!(run_length_encode_string(&"dlllrrrruudr".to_string()));
-
     let whitelist = WhitelistMap::load_or_new(&path.join("whitelist"));
     whitelist.save().unwrap();
 
     // Creates a new API key if there isn't one
     ApiKey::load_or_new();
+
     rocket::build()
     // Initializes the turtle connection manager
     .manage(Arc::new(TurtleConnections::new()))

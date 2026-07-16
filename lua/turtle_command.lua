@@ -32,6 +32,12 @@ local function setup_files()
         file.close()
     end
 
+    if not fs.exists("turtle_command/keep_alive_time.txt") then
+        local file = fs.open("turtle_command/keep_alive_time.txt","w")
+        file.write("4")
+        file.close()
+    end
+
     local url, api_key = fetch_conneciton_data()
     if url == nil then
         print("Warning: No URL in turtle_command/url.txt!")
@@ -54,7 +60,7 @@ end
 -- Kind is always a string representing how to deal with response
 local function parse_response(input)
     local decoded_json = textutils.unserialiseJSON(input)
-    print(decoded_json.instruction, decoded_json.data)
+    print("Rep I:"..decoded_json.instruction.." D:"..decoded_json.data)
     return decoded_json.instruction, decoded_json.data
 end
 
@@ -235,7 +241,7 @@ local function send_block_cache(websocket)
     end
 end
 
--- Sends a post request with all the turtle's data
+-- Sends a websocket message with all the turtle's data
 local function ws_register(websocket)
     local send_data = fetch_own_status()
 
@@ -252,6 +258,12 @@ local function ws_register(websocket)
     end
 
     local message = format_message("register", textutils.serialiseJSON(send_data))
+    websocket.send(message)
+end
+
+-- Sends a websocket message to acknowledge a received message
+local function ws_acknowledge(websocket)
+    local message = format_message("acknowledge", textutils.serialiseJSON(textutils.json_null))
     websocket.send(message)
 end
 
@@ -278,15 +290,15 @@ end
 -- Handles movement instructions
 local function handle_move(data)
     if data == "turnLeft" or data == "left" or data == "l" then
-        mv.left()
+        return mv.left()
     elseif data == "turnRight" or data == "right" or data == "r" then
-        mv.right()
+        return mv.right()
     elseif data == "forward" or data == "f" then
-        turtle.forward()
+        return turtle.forward()
     elseif data == "up" or data == "u" then
-        turtle.up()
+        return turtle.up()
     elseif data == "down" or data == "d" then
-        turtle.down()
+        return turtle.down()
     end
 end
 
@@ -294,7 +306,7 @@ end
 -- Data should be formatted as such:
 -- (letter)(number) etc...
 -- for example, l4r5u12d1rl means left 4, right 5, up 12, down 1, right, left
-local function handle_path(data)
+local function handle_path(websocket, data)
     local raw_list={}
     data:gsub("%a%d*",function(c) table.insert(raw_list, c) end)
 
@@ -309,10 +321,32 @@ local function handle_path(data)
 
         print(v)
 
+        -- Handles errors along the way
         for c = 1, count do
-            handle_move(action)
+            local success, reason = handle_move(action)
+            print(reason)
+            if reason == "Movement obstructed" then
+                websocket.send(format_message("movementObstructed", ""))
+            end
+
+            if not success then
+                error(reason)
+            end
         end
     end
+end
+
+-- Handles the terminate event so it shuts down the websocket before terminating
+local function handle_terminate(websocket)
+    websocket.close()
+    print("Websocket shut down.")
+    if term.isColor() then
+        term.setTextColor(colors.red)
+    end
+
+    -- Shuts down thready quickly
+    thready.running = false
+    print("Terminated")
 end
 
 local function handle_websocket_message(websocket, event_name, url, message, is_binary)
@@ -327,28 +361,36 @@ local function handle_websocket_message(websocket, event_name, url, message, is_
     if kind == "move" then
         handle_move(data)
     elseif kind == "movementPath" then
-        handle_path(data)
+        handle_path(websocket, data)
     elseif kind == "register" then
         ws_register(websocket)
     elseif kind == "testBlockSend" then -- DEBUG
         append_inspect_all()
         send_block_cache(websocket)
+    elseif kind == "keepAliveTime" then
+        mv.rewrite_file(tonumber(data))
+    elseif kind == "closingConnection" then
+        print("Server closed connection.")
+        handle_terminate(websocket)
     end
 
     -- TODO: Deal with more responses
 end
 
--- Handles the terminate event so it shuts down the websocket before terminating
-local function handle_terminate(websocket)
-    websocket.close()
-    print("Websocket shut down.")
+local function keep_alive_ping(websocket)
+    while true do
+        websocket.send(format_message("ping", "ping"))
+        os.sleep(mv.read_first_line("turtle_command/keep_alive_time.txt"))
+    end
+end
+
+local function handle_websocket_closure(websocket)
+    print("Websocket unexpectedly closed!")
     if term.isColor() then
         term.setTextColor(colors.red)
     end
-
     -- Shuts down thready quickly
     thready.running = false
-    thready.kill_all("websocket_handler")
     print("Terminated")
 end
 
@@ -360,5 +402,8 @@ ws_register(websocket)
 -- NOTE: Change made by C2, the first argument passed to all listeners is the global websocket!
 thready.websocket = websocket
 thready.listen("websocket_handler", "websocket_message", handle_websocket_message)
+thready.listen("websocket_closed_handler", "websocket_closed", handle_websocket_closure)
 thready.listen("terminate_handler", "terminate", handle_terminate)
+thready.spawn("keep_alive_ping", keep_alive_ping, websocket)
+thready.kill_set_on_error = false
 thready.main_loop()
