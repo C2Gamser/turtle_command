@@ -1,4 +1,5 @@
 local mv = require("move_utilities")
+local thready = require("thready")
 
 -- Helper function to return url, api_key
 local function fetch_conneciton_data()
@@ -313,11 +314,7 @@ local function handle_path(data)
     end
 end
 
-local function handle_websocket_message(event_data, websocket)
-    local url = event_data[1]
-    local message = event_data[2]
-    local is_binary = event_data[3]
-
+local function handle_websocket_message(websocket, url, message, is_binary)
     if is_binary then
         error("Recieved binary response from websocket!")
     end
@@ -346,14 +343,14 @@ local function handle_terminate(websocket)
         term.setTextColor(colors.red)
     end
     print("Terminated")
+
+    -- Note: Due to thready, this won't actually shut down the turtle...
     error()
 end
 
 local function persistent_event_handler(websocket)
     -- Contains coroutines so we can e.g. handle events and move at the same time
     local tasks = {}
-
-    
 
     while true do
         local event_data = table.pack(os.pullEventRaw())
@@ -371,5 +368,12 @@ setup_files()
 
 local websocket = establish_websocket()
 ws_register(websocket)
-persistent_event_handler(websocket)
 
+-- NOTE: The first argument passed to all listeners is the global websocket!
+-- I have made this change.
+thready.websocket = websocket
+thready.listen("websocket_handler", "websocket_message", handle_websocket_message)
+thready.listen("terminate_handler", "websocket_message", handle_terminate)
+thready.main_loop()
+
+-- persistent_event_handler(websocket)

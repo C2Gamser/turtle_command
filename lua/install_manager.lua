@@ -1,7 +1,8 @@
 local download_list = {
     "turtle_command.lua",
     "install_manager.lua",
-    "move_utilities.lua"
+    "move_utilities.lua",
+    "thready.lua"
 }
 
 -- Helper function to return the server url

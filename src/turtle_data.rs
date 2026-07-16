@@ -47,7 +47,10 @@ impl Turtle {
     // Saves itself to a file in path with the name being its id
     pub fn save(&self, path: PathBuf) {
         let string_self = json::to_pretty_string(&self).unwrap();
-        fs::write(path.join(&self.id.to_string()), string_self).expect(&format!("Should be able to write to `turtles/{}.json`",self.id));
+        let mut my_path = self.id.to_string();
+        my_path.push_str(".json");
+        
+        fs::write(path.join(my_path), string_self).expect(&format!("Should be able to write to `turtles/{}.json`",self.id));
     }
 
     pub fn load(filepath: OsString) -> Self {
