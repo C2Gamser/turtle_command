@@ -249,7 +249,6 @@ local function ws_register(websocket)
         end
     end
 
-
     local message = format_message("register", textutils.serialiseJSON(send_data))
     websocket.send(message)
 end

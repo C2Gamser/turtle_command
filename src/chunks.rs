@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, path::Path};
+use std::{collections::{HashMap, HashSet}, fs::{self, File}, path::{Path, PathBuf}};
+use rocket::{serde::json};
 use crate::coordinates::Coordinate;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -77,4 +78,47 @@ pub enum BlockStateData {
 pub struct BlockData {
     pub name: String,
     pub states: HashMap<String, BlockStateData>
+}
+
+// The whitelist map is used to tell the pathfinder functions what blocks turtles are allowed to move through
+#[derive(Debug, Clone)]
+#[derive(Deserialize, Serialize)]
+#[serde(crate = "rocket::serde")]
+pub struct WhitelistMap {
+    map: HashSet<String>,
+
+    #[serde(skip)]
+    path: PathBuf
+}
+
+impl WhitelistMap {
+        /// Makes a new WhitelistMap
+        fn new<P: AsRef<Path>>(path: &P) -> Self {
+            let path = path.as_ref().to_path_buf();
+            let mut map = HashSet::new();
+            map.insert("minecraft:air".to_string());
+            Self {path, map}
+        }
+
+        fn load<P: AsRef<Path>>(path: &P) -> Self {
+            let path = path.as_ref();
+
+            let mut temp_self: Self = json::from_str(&fs::read_to_string(path).unwrap()).unwrap();
+            temp_self.path = path.to_path_buf();
+            temp_self
+        }
+
+        fn load_or_new<P: AsRef<Path>>(path: &P) -> Self {
+            let path = path.as_ref();
+            if path.exists() {
+                Self::load(&path)
+            } else {
+                Self::new(&path)
+            }
+        }
+
+        fn save(&self) -> Result<(), Box<dyn std::error::Error>> {
+            _ = fs::write(&self.path, json::to_pretty_string(self).unwrap());
+            Ok(())
+        }
 }
