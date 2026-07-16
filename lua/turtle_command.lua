@@ -316,8 +316,9 @@ local function handle_path(data)
 end
 
 local function handle_websocket_message(websocket, event_name, url, message, is_binary)
-
-    if is_binary then
+    if not mv.verify_address(url) then
+        error("Recieved message from non-target web address!")
+    elseif is_binary then
         error("Recieved binary response from websocket!")
     end
 
@@ -351,22 +352,6 @@ local function handle_terminate(websocket)
     print("Terminated")
 end
 
-local function persistent_event_handler(websocket)
-    -- Contains coroutines so we can e.g. handle events and move at the same time
-    local tasks = {}
-
-    while true do
-        local event_data = table.pack(os.pullEventRaw())
-        local event = table.remove(event_data, 1)
-
-        if event == "terminate" then
-            handle_terminate(websocket)
-        elseif event == "websocket_message" then
-            handle_websocket_message(event_data, websocket)
-        end
-    end
-end
-
 setup_files()
 
 local websocket = establish_websocket()
@@ -377,5 +362,3 @@ thready.websocket = websocket
 thready.listen("websocket_handler", "websocket_message", handle_websocket_message)
 thready.listen("terminate_handler", "terminate", handle_terminate)
 thready.main_loop()
-
--- persistent_event_handler(websocket)

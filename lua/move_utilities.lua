@@ -51,9 +51,25 @@ local function turnRight()
 
 end
 
+-- Takes in a URL and compares it to our target URL
+-- If they match, return true, else return false
+-- Parses the input data so that http://127.0.0.1:8000 is reduced to 127.0.0.1:8000
+-- Also throws away the rest of the url, e.g. http://127.0.0.1:8000/command?id=5 turns into 127.0.0.1:8000 also
+local function verify_address(url)
+    local i, j = string.find(url, "//[^/]+/?")
+    url = string.gsub(string.sub(url, i, j), "/", "")
+
+    local my_url = read_first_line("turtle_command/url.txt")
+    i, j = string.find(my_url, "//[^/]+/?")
+    my_url = string.gsub(string.sub(my_url, i, j), "/", "")
+
+    return url == my_url
+end
+
 return {
     left = turnLeft,
     right = turnRight,
     read_first_line = read_first_line,
     rewrite_file = rewrite_file,
+    verify_address = verify_address,
 }
