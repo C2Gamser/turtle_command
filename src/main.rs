@@ -1,18 +1,21 @@
 use rocket::form::Form;
 use rocket::fs::{FileServer, NamedFile};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::ffi::OsString;
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf, path::Path, vec, fs};
 use std::sync::{Arc, Mutex};
-use std::{path::Path};
 use uuid::{Uuid};
-use std::{vec, fs};
 use rocket::{http::Status, serde::json, State};
 use rocket::request::{FromRequest, Request, Outcome};
 use rocket::tokio::sync::mpsc;
 use rocket_ws as ws;
+mod chunks;
+mod turtle_data;
+mod coordinates;
+use chunks::{Chunk, BlockData};
+use coordinates::Coordinate;
+use turtle_data::{Turtle, Slot, Inventory};
 #[macro_use] extern crate rocket;
+
 
 #[derive(Debug)]
 enum ApiKeyError {
@@ -120,170 +123,6 @@ impl TurtleConnections {
     }
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-struct Slot {
-    name: String,
-    count: i8
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-struct Inventory {
-    size: i32,
-    slots: Vec<Option<Slot>>
-}
-
-impl Inventory {
-    fn new(size: i32, contents: Option<Vec<Option<Slot>>>) -> Self {
-        match contents {
-            Some(contents) => {
-                let mut new_inventory = Inventory {size: size, slots: (contents) };
-                let deficit = new_inventory.size - (new_inventory.slots.len() as i32);
-
-                if deficit > 0 {
-                    // Fills the rest of the array with None if it isnt full
-
-                    let mut slice: Vec<Option<Slot>> = vec![None;deficit as usize];
-                    new_inventory.slots.append(&mut slice);
-                }
-                new_inventory
-            }
-
-            None => Self::new_empty(size)
-        }
-    }
-
-    fn new_empty(size: i32) -> Self {
-        Inventory { size: size, slots: vec![None; size.try_into().unwrap()] }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone, Copy)]
-struct Coordinate {
-    x: i32,
-    y: i32,
-    z: i32
-}
-
-impl Coordinate {
-    /// Creates a coordinate using the x, y, and z inputs
-    fn new(x: i32, y: i32, z: i32) -> Self {
-        Self {x, y, z}
-    }
-
-    fn world_to_local_coords(&self) -> Self {
-        Coordinate::new(self.x & 0xF, self.y & 0xF, self.z & 0xF)
-    }
-
-    fn world_to_chunk_coords(&self) -> Self {
-        Coordinate::new(self.x >> 4, self.y >> 4, self.z >> 4)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(Deserialize, Serialize)]
-#[serde(crate = "rocket::serde")]
-#[serde(untagged)]
-enum BlockStateData {
-    Bool(bool),
-    Integer(i32),
-    String(String),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[derive(Deserialize, Serialize)]
-#[serde(crate = "rocket::serde")]
-struct BlockData {
-    name: String,
-    states: HashMap<String, BlockStateData>
-}
-
-#[derive(Debug, PartialEq, Eq)]
-#[derive(Deserialize, Serialize)]
-#[serde(crate = "rocket::serde")]
-struct Chunk {
-    coordinates: Coordinate,
-    block_data: Vec<Vec<Vec<BlockData>>>
-}
-
-impl Chunk {
-    /// Creates a 16x16x16 vector filled with air
-    fn new(coordinates: &Coordinate) -> Self {
-        Self {
-            coordinates: *coordinates,
-            block_data: vec![vec![vec![BlockData {name: "minecraft:air".to_string(), states: HashMap::new() }; 16]; 16]; 16]
-        }
-    }
-
-    /// Sets a block in the chunk to the input
-    fn set_block(&mut self, coordinate: &Coordinate, block: &BlockData) {
-        self.block_data[coordinate.x as usize][coordinate.y as usize][coordinate.z as usize] = block.clone();
-    }
-
-    fn get_name(coords: &Coordinate) -> String {
-       coords.x.to_string() + "_" + &coords.y.to_string() + "_" + &coords.z.to_string()
-    }
-
-    /// Saves this chunks data to the given path with the correct name
-    fn save<P: AsRef<Path>>(&self, path: &P) {
-        let path = path.as_ref();
-        let file_name = Self::get_name(&self.coordinates);
-        let chunk_file = std::fs::File::create(path.join(file_name)).unwrap();
-
-        let chunk_file = lz4_flex::frame::FrameEncoder::new(chunk_file).auto_finish();
-
-        ciborium::into_writer(self, chunk_file).unwrap();
-    }
-
-    /// Creates a new chunk object from a path that is given
-    fn load<P: AsRef<Path>>(path: &P, coordinates: &Coordinate) -> Option<Self> {
-        let path = path.as_ref();
-        let file_name = Self::get_name(coordinates);
-        let reader = std::fs::File::open(path.join(file_name)).ok()?;
-
-        let reader = lz4_flex::frame::FrameDecoder::new(reader);
-
-        ciborium::from_reader(reader).unwrap()
-    }
-
-    fn load_or_new<P: AsRef<Path>>(path: &P, coordinates: &Coordinate) -> Self {
-        let path = path.as_ref();
-        if let Some(chunk) = Self::load(&path, coordinates){
-            chunk
-        } else {
-            Self::new(coordinates)
-        }
-    }
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-struct Turtle {
-    id: u16,
-    connected: bool,
-    inventory: Inventory,
-    equipped_left: Option<Slot>,
-    equipped_right: Option<Slot>,
-    coordinates: Coordinate,
-    fuel: i16
-}
-
-impl Turtle {
-    // Saves itself to a file in turtles/ with the name being its id
-    fn save(&self) {
-        let string_self = json::to_pretty_string(&self).unwrap();
-        if !fs::exists("turtles/").unwrap() {
-            fs::create_dir("turtles/").unwrap();
-        }
-        fs::write(format!("turtles/{}.json",self.id), string_self).expect(&format!("Should be able to write to `turtles/{}.json`",self.id));
-    }
-
-    fn load(filepath: OsString) -> Self {
-        let  data = fs::read_to_string(&filepath).expect(&format!("Should be able to read `{}`",filepath.display()));
-        let new_self: Turtle = json::from_str(&data).unwrap();
-
-        new_self
-    }
-}
-
 #[rocket::async_trait]
 impl<'r> FromRequest<'r> for ApiKey {
     type Error = ApiKeyError;
@@ -315,19 +154,19 @@ struct TurtleRegistrationData {
 
 // Registers a turtle's data, used to update turtle data files currently
 fn ws_register(reg_data: &String, connections: &Arc<TurtleConnections>) {
-    let reg_data: TurtleRegistrationData = json::from_str(&reg_data).unwrap();
+    let reg_data: Turtle = json::from_str(&reg_data).unwrap();
 
-    let new_turtle = Turtle {
-        id: reg_data.id,
-        connected: reg_data.connected,
-        inventory: Inventory::new(16, reg_data.inventory_contents.clone()),
-        equipped_left: reg_data.equipped_left.clone(),
-        equipped_right: reg_data.equipped_right.clone(),
-        coordinates: reg_data.coordinates.clone(),
-        fuel: reg_data.fuel
-    };
+    // let new_turtle = Turtle {
+    //     id: reg_data.id,
+    //     connected: reg_data.connected,
+    //     inventory: (16, reg_data.inventory_contents).into(),
+    //     equipped_left: reg_data.equipped_left.clone(),
+    //     equipped_right: reg_data.equipped_right.clone(),
+    //     coordinates: reg_data.coordinates.clone(),
+    //     fuel: reg_data.fuel
+    // };
 
-    Turtle::save(&new_turtle);
+    reg_data.save();
     let response = TurtleReadable::new("status", "successful").to_ws_message();
     connections.send_to(reg_data.id, response);
 }
