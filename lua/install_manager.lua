@@ -48,5 +48,11 @@ if fs.exists("install_manager.lua") and fs.exists("turtle_command/install_manage
     fs.delete("install_manager.lua")
 end
 
+if first_install then
+    local file = fs.open("startup.lua", "w")
+    file.write("shell.run('install_manager.lua')")
+    file.close()
+end
+
 
 shell.run("turtle_command/turtle_command.lua")

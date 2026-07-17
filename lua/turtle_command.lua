@@ -288,7 +288,6 @@ local function establish_websocket()
 
     if not socket then
         print(fail_reason)
-        error("Couldn't make connection.")
     else
         print("Websocket connected!")
     end
@@ -348,7 +347,7 @@ end
 -- Handles the terminate event so it shuts down the websocket before terminating
 local function handle_terminate(websocket)
     websocket.close()
-    print("Websocket shut down.")
+
     if term.isColor() then
         term.setTextColor(colors.red)
     end
@@ -376,9 +375,6 @@ local function handle_websocket_message(websocket, event_name, url, message, is_
     elseif kind == "testBlockSend" then -- DEBUG
         append_inspect_all()
         send_block_cache(websocket)
-    elseif kind == "closingConnection" then
-        print("Server closed connection.")
-        handle_terminate(websocket)
     end
 
     -- TODO: Deal with more responses
@@ -391,19 +387,47 @@ local function keep_alive_ping(websocket)
     end
 end
 
+local function persistent_connect(websocket)
+    local counter = 0
+    while true do
+        if io.type(websocket) == "file" then
+            websocket.close()
+        end
+
+        websocket = establish_websocket()
+        if not websocket then
+            write("Retrying.")
+            os.sleep(1)
+            write(".")
+            os.sleep(1)
+            write(".")
+            os.sleep(1)
+            print("")
+            counter = counter + 1
+        else
+            thready.websocket = websocket
+            print("Took "..counter.." attempts to reconnect.")
+            return websocket
+        end
+    end
+end
+
 local function handle_websocket_closure(websocket)
     print("Websocket unexpectedly closed!")
-    if term.isColor() then
-        term.setTextColor(colors.red)
-    end
-    -- Shuts down thready quickly
-    thready.running = false
-    print("Terminated")
+    print("Attempting reconnect.")
+
+    thready.kill_all("keep_alive_ping")
+    local websocket = persistent_connect(websocket)
+    thready.spawn("keep_alive_ping", keep_alive_ping, websocket)
 end
 
 setup_files()
 
 local websocket = establish_websocket()
+if not websocket then
+    websocket = persistent_connect(websocket)
+end
+
 ws_register(websocket)
 
 -- NOTE: Change made by C2, the first argument passed to all listeners is the global websocket!
@@ -413,4 +437,5 @@ thready.listen("websocket_closed_handler", "websocket_closed", handle_websocket_
 thready.listen("terminate_handler", "terminate", handle_terminate)
 thready.spawn("keep_alive_ping", keep_alive_ping, websocket)
 thready.kill_set_on_error = false
+thready.stop_on_error = false
 thready.main_loop()
