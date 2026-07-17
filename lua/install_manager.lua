@@ -23,7 +23,10 @@ local function fetch_url()
     return url
 end
 
-local url = fetch_url()
+local url = nil
+if not first_install then
+    url = fetch_url()
+end
 
 for i, v in pairs(download_list) do
     local response, fail_reason = nil, nil
