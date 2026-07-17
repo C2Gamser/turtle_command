@@ -4,27 +4,33 @@ local thready = require("thready")
 
 -- Helper function to return url, api_key
 local function fetch_conneciton_data()
-    local url_file = fs.open("turtle_command/url.txt","r")
-    local url = url_file.readLine()
-    url_file.close()
-    local api_key_file = fs.open("turtle_command/api_key.txt","r")
-    local api_key = api_key_file.readLine()
-    api_key_file.close()
-    return url, api_key
+    return settings.get("url"), settings.get("api_key")
 end
 
 -- Makes sure that all the files that must exist, do
--- If they don't have any contents then this warns the user too
+-- Also sets up a settings file for the api key, ping time, and server url
 -- In the case of the direction file, it will not allow the user to continue the program unless it has a direciton in it (n, s, e, w)
 local function setup_files()
-    if not fs.exists("turtle_command/url.txt") then
-        local file = fs.open("turtle_command/url.txt","w")
-        file.close()
-    end
+    if not settings.load("turtle_command/config.settings") then
+        settings.define("api_key", {
+            description = "The API key required to establish a websocket connection with the server. On the server side this is located in api_key.txt",
+            default = "",
+            type = "string",
+        })
 
-    if not fs.exists("turtle_command/api_key.txt") then
-        local file = fs.open("turtle_command/api_key.txt","w")
-        file.close()
+        settings.define("ping_time", {
+            description = "The number of seconds the turtle waits between sending keep alive pings.",
+            default = 6,
+            type = "number",
+        })
+
+        settings.define("url", {
+            description = "The URL of the server that this turtle will connect to.",
+            default = "",
+            type = "string",
+        })
+
+        settings.save("turtle_command/config.settings")
     end
 
     if not fs.exists("turtle_command/facing.txt") then
@@ -37,21 +43,25 @@ local function setup_files()
         file.close()
     end
 
-    if not fs.exists("turtle_command/keep_alive_time.txt") then
-        local file = fs.open("turtle_command/keep_alive_time.txt","w")
-        file.write("6")
-        file.close()
+    -- Formats the text to be yellow to highlight it for the user.
+    if term.isColor() then
+        term.setTextColor(colors.yellow)
     end
 
     local url, api_key = fetch_conneciton_data()
     if url == nil then
-        print("Warning: No URL in turtle_command/url.txt!")
+        print("Warning: No URL in turtle_command/confing.settings!")
     end
 
     if api_key == nil then
-        print("Warning: No API key in turtle_command/api_key.txt!")
+        print("Warning: No API key in turtle_command/confing.settings!")
     end
 
+    if term.isColor() then
+        term.setTextColor(colors.white)
+    end
+
+    -- Errors if there is no direction in the direction file as the turtle NEEDS to know its direction.
     if mv.read_first_line("turtle_command/facing.txt") == nil then
         if term.isColor() then
             term.setTextColor(colors.red)
@@ -404,11 +414,11 @@ local function handle_websocket_message(websocket, event_name, url, message, is_
 end
 
 -- Sends pings every few seconds to the server to tell it that this turtle is connected
--- The delay is set in turtle_command/keep_alive_time.txt
+-- The delay is set in turtle_command/config.settings
 local function keep_alive_ping(websocket)
     while true do
         websocket.send(format_message("ping", "ping"))
-        os.sleep(tonumber(mv.read_first_line("turtle_command/keep_alive_time.txt")))
+        os.sleep(settings.get("ping_time"))
     end
 end
 
