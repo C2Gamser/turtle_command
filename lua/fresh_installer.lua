@@ -9,21 +9,9 @@ local download_list = {
     "logging.lua"
 }
 
--- Helper function to return the server url
-local function fetch_url()
-    local url_file = fs.open("turtle_command/url.txt","r")
-    local url = url_file.readLine()
-    url_file.close()
-    return url
-end
-
-local url = nil
-
-url = fetch_url()
-
 for i, v in pairs(download_list) do
     local response, fail_reason = nil, nil
-    response, fail_reason = http.get(url.."/lua/"..v)
+    response, fail_reason = http.get("https://raw.githubusercontent.com/C2Gamser/turtle_command/refs/heads/master/lua/"..v)
 
     if fail_reason then
         print(fail_reason..". Getting "..v.." failed.")
@@ -35,9 +23,8 @@ for i, v in pairs(download_list) do
     end
 end
 
--- Removes the install manager if it is in the wrong place, e.g. on first installation
-if fs.exists("install_manager.lua") and fs.exists("turtle_command/install_manager.lua") then
-    fs.delete("install_manager.lua")
-end
+local file = fs.open("startup.lua", "w")
+file.write("shell.run('install_manager.lua')")
+file.close()
 
-shell.run("turtle_command/turtle_command.lua")
+shell.run("turtle_command/install_manager.lua")
