@@ -382,6 +382,12 @@ async fn control() -> Result<NamedFile, std::io::Error> {
     NamedFile::open("frontend/control_test.html").await
 }
 
+// Handles the control test page
+#[get("/comptest")]
+async fn component_test() -> Result<NamedFile, std::io::Error> {
+    NamedFile::open("frontend/component_test.html").await
+}
+
 #[derive(FromForm, Debug)]
 struct WebCommand<'r> {
     id: u16,
@@ -414,8 +420,7 @@ fn connected_ids(connections: &State<Arc<TurtleConnections>>) -> json::Json<Vec<
 const LUA_FOLDER: &str = "lua";
 const WORLD_FOLDER: &str = "world_data";
 const TURTLES_FOLDER: &str = "turtles";
-const SCRIPTS_FOLDER: &str = "frontend/scripts";
-const RESOURCE_FOLDER: &str = "frontend/resources/";
+const FRONTEND_FOLDER: &str = "frontend/";
 
 #[launch]
 fn rocket() -> _ {
@@ -434,14 +439,20 @@ fn rocket() -> _ {
     .manage(Arc::new(TurtleConnections::new()))
     // This hosts all the files in the lua folder, so if we recieve a get request that has /lua/filepath it will go to that filepath
     .mount("/".to_owned()+LUA_FOLDER, FileServer::from(LUA_FOLDER.to_owned()+"/"))
-    // This hosts the files in the scripts folder for easy script frontend access
-    .mount("/".to_owned()+SCRIPTS_FOLDER, FileServer::from(SCRIPTS_FOLDER.to_owned()+"/"))
     // This hosts all the turtle data for easy frontend access
     .mount("/".to_owned()+TURTLES_FOLDER, FileServer::from(TURTLES_FOLDER.to_owned()+"/"))
-    // This hosts all the files in the resources folder for easy frontend access
-    .mount("/".to_owned()+RESOURCE_FOLDER, FileServer::from(RESOURCE_FOLDER.to_owned()+"/"))
+    // This hosts all the files in the frontend folder
+    .mount("/".to_owned()+FRONTEND_FOLDER, FileServer::from(FRONTEND_FOLDER.to_owned()+"/"))
 
-    .mount("/", routes![websocket, index, control, web_command, connected_ids, serve_favicon])
+    .mount("/", routes![
+        websocket,
+        index,
+        control,
+        web_command,
+        connected_ids,
+        serve_favicon,
+        component_test
+        ])
 }
 
 // TODO:

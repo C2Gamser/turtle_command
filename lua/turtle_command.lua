@@ -14,7 +14,7 @@ local function fetch_conneciton_data()
 end
 
 -- Makes sure that all the files that must exist, do
--- If they don't have any contents then this warns the user too\
+-- If they don't have any contents then this warns the user too
 -- In the case of the direction file, it will not allow the user to continue the program unless it has a direciton in it (n, s, e, w)
 local function setup_files()
     if not fs.exists("turtle_command/url.txt") then
@@ -28,6 +28,11 @@ local function setup_files()
     end
 
     if not fs.exists("turtle_command/facing.txt") then
+        local file = fs.open("turtle_command/facing.txt","w")
+        file.close()
+    end
+
+    if not fs.exists("turtle_command/block_cache.txt") then
         local file = fs.open("turtle_command/facing.txt","w")
         file.close()
     end

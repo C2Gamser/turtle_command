@@ -100,26 +100,6 @@ class Turtle {
         elem.innerText = "Fuel: "+this.fuel;
         turtle_div.appendChild(elem);
 
-        // Inventory
-        // elem = document.createElement("div");
-        // elem.id = "inventory";
-        // elem.class = "inventoryContainer";
-        // elem.innerText = "Inventory: ";
-        // turtle_div.appendChild(elem);
-        // // Inventory fulfillment center
-        // for (let i = 0; i < this.inventory.size; i ++) {
-        //     let elem2 = document.createElement("div");
-
-        //     if (this.inventory.slots[i] == null) {
-        //         elem2.innerText = "Empty"
-        //     } else {
-        //         elem2.innerText = this.inventory.slots[i].toString()
-        //     }
-
-        //     elem.appendChild(elem2)
-        // }
-
-
         turtle_div.appendChild(elem)
 
         return turtle_div

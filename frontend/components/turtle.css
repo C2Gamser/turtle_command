@@ -1,0 +1,40 @@
+x-turtle {
+    display:block;
+    width: 12em;
+    height: 4em;
+    padding: 8px;
+    background: black;
+    color: white;
+    word-wrap: break-word;
+
+    font-size: 25px;
+
+    /* Handles the border */
+    image-rendering: pixelated;
+    border-image-source: url("/frontend/resources/images/border_advanced.png");
+    border-image-slice: 17;
+    border-image-width: 15px;
+    border-image-outset: 10px;
+
+    animation: show 100ms 100ms linear forwards;
+
+    /* pre animation state */
+    color: white;
+}
+
+[data-connected="true"] {
+  color: black;
+}
+
+@keyframes show {
+    0% {
+        color: white;
+    }
+    50% {
+        color: black;
+    }
+    100% {
+        color: white;
+    }
+}
+

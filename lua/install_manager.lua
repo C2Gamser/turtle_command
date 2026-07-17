@@ -1,3 +1,6 @@
+-- For installation of turtle_command run:
+-- wget run https://raw.githubusercontent.com/C2Gamser/turtle_command/refs/heads/master/lua/install_manager.lua
+
 local download_list = {
     "turtle_command.lua",
     "install_manager.lua",
@@ -5,6 +8,12 @@ local download_list = {
     "thready.lua",
     "logging.lua"
 }
+
+local first_install = false
+
+if not fs.exists("turtle_command/url.txt") then
+    first_install = true
+end
 
 -- Helper function to return the server url
 local function fetch_url()
@@ -14,9 +23,15 @@ local function fetch_url()
     return url
 end
 
+local url = fetch_url()
+
 for i, v in pairs(download_list) do
-    local url = fetch_url()
-    local response, fail_reason = http.get(url.."/lua/"..v)
+    local response, fail_reason = nil, nil
+    if first_install then
+        response, fail_reason = http.get("https://raw.githubusercontent.com/C2Gamser/turtle_command/refs/heads/master/lua/"..v)
+    else
+        response, fail_reason = http.get(url.."/lua/"..v)
+    end
 
     if fail_reason then
         print(fail_reason..". Getting "..v.." failed.")
