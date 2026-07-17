@@ -15,3 +15,47 @@ body {
     color: white;
     text-rendering: optimizeLegibility;
 }
+
+/* The slider itself */
+#fontSizeSlider {
+    -webkit-appearance: none;  /* Override default CSS styles */
+    appearance: none;
+    height: 25px; /* Specified height */
+    background: url("/frontend/resources/images/Widget_slider.png");
+    background-repeat: round;
+    outline: none; /* Remove outline */
+    opacity: 0.7; /* Set transparency (for mouse-over effects on hover) */
+    -webkit-transition: .2s; /* 0.2 seconds transition on hover */
+    transition: opacity .2s;
+    border-radius: 0px;
+}
+
+/* Mouse-over effects */
+#fontSizeSlider:hover {
+    opacity: 1; /* Fully shown on mouse-over */
+}
+
+/* The slider handle (use -webkit- (Chrome, Opera, Safari, Edge) and -moz- (Firefox) to override default look) */
+#fontSizeSlider::-webkit-slider-thumb {
+    -webkit-appearance: none; /* Override default look */
+    appearance: none;
+    width: 25px; /* Set a specific slider handle width */
+    height: 40px; /* Slider handle height */
+    background: url("/frontend/resources/images/Scroller.png");
+    border-radius: 0px;
+    background-repeat:round;
+    background-size: 100%;
+    image-rendering: pixelated;
+    cursor: pointer; /* Cursor on hover */
+}
+
+#fontSizeSlider::-moz-range-thumb {
+    width: 25px; /* Set a specific slider handle width */
+    height: 40px; /* Slider handle height */
+    background: url("/frontend/resources/images/Scroller.png");
+    border-radius: 0px;
+    background-repeat:round;
+    background-size: 100%;
+    image-rendering: pixelated;
+    cursor: pointer; /* Cursor on hover */
+}

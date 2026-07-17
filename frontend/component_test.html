@@ -4,10 +4,40 @@
     <!-- Imports components -->
     <link rel="stylesheet" href="/frontend/style/index.css">
     <script type="module" src="/frontend/scripts/register_components.js" defer></script>
+    <style id="turtleFontSize">
+        :root{
+            --x-turtle-font-size: 35px;
+        }
+    </style>
 </head>
 <body>
     <p>Test:</p>
+    <label for ="fontSizeSlider">Scale: <span id="fontSizeValue">30</span></label>
+    <input autocomplete="off" type="range" id="fontSizeSlider" min="10" max="70" value="30" step="5">
+
+    <div>&nbsp;</div>
+    <hr>
+
     <x-turtle-loader></x-turtle-loader>
 
+    <script type="module">
+        import { MultiAudio } from "/frontend/scripts/click_audio.js";
+
+        const slider = document.getElementById('fontSizeSlider');
+        const valueLabel = document.getElementById('fontSizeValue');
+
+        slider.addEventListener('input', () => {
+            const size = slider.value;
+            document.documentElement.style.setProperty('--x-turtle-font-size', `${size}px`);
+            valueLabel.textContent = size;
+        });
+
+        let multi_audio = new MultiAudio("/frontend/resources/audio/Click_stereo.ogg", 8)
+
+        slider.addEventListener("click", function () {
+            multi_audio.play()
+        });
+
+    </script>
 </body>
 </html>

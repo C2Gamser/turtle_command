@@ -1,26 +1,87 @@
+:root {
+    --x-turtle-font-size: 25px;
+}
+
 x-turtle {
+    /* preload images */
+    content:url(/frontend/resources/images/buttons/turned_on_green.png) url(/frontend/resources/images/buttons/turned_on_hover_green.png);
+
     display:block;
+    position: relative;
     width: 12em;
     height: 4em;
-    padding: 8px;
+    padding: 0.2em;
     background: black;
     color: white;
     word-wrap: break-word;
 
-    font-size: 25px;
+    /* Determines the scale of the entire object */
+    font-size: var(--x-turtle-font-size);
+
+    margin-top: 1.6em;
 
     /* Handles the border */
     image-rendering: pixelated;
-    border-image-source: url("/frontend/resources/images/border_advanced.png");
-    border-image-slice: 17;
-    border-image-width: 15px;
-    border-image-outset: 10px;
+    border-image-source: url("/frontend/resources/images/border_modified.png");
+    border-image-slice: 8;
+    border-image-width: 0.5em;
+    border-image-outset: 0.5em;
+    border-style: solid;
 
     animation: show 100ms 100ms linear forwards;
 
     /* pre animation state */
     color: white;
+
+    .powerButton{
+        --button-size: 1.3em;
+
+        font-size: var(--x-turtle-font-size);
+        width: var(--button-size);
+        height: calc(var(--button-size) + 0.1em);
+
+        position: absolute;
+        top: calc(-1 * var(--button-size) - 0.72em);
+        left: 0.5em;
+
+        background-image: url(/frontend/resources/images/buttons/turned_on_green.png);
+        background-repeat: no-repeat;
+        image-rendering: pixelated;
+        background-size: 100%;
+        background-position: center;
+
+        background-color: #c7c86e;
+
+        /* Handles the border */
+        image-rendering: pixelated;
+        border-style: solid;
+        border-image: url("/frontend/resources/images/border_modified.png");
+        border-image-slice: 5;
+        border-image-width: 0.32em 0.32em 0 0.32em;
+        border-image-outset: 0.3em 0.3em 0 0.3em;
+    }
+
+    .powerButton:hover {
+        background-image: url(/frontend/resources/images/buttons/turned_on_hover_green.png);
+        cursor: pointer
+    }
+
+    .powerButton:active {
+        background-size: 88%;
+        cursor: pointer
+    }
+
+    /* makes it so the user cannot select anything in the turtle */
+    * {
+        -moz-user-select: -moz-none;
+        -khtml-user-select: none;
+        -webkit-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+    }
 }
+
+
 
 [data-connected="true"] {
   color: black;
