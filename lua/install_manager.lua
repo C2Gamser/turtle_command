@@ -9,7 +9,11 @@ local download_list = {
     "logging.lua"
 }
 
-local first_install = arg[1]
+local first_install = false
+if arg[1] == "true" then
+    first_install = true
+end
+
 
 -- Helper function to return the server url
 local function fetch_url()
