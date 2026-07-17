@@ -24,7 +24,7 @@ local function fetch_url()
 end
 
 local url = nil
-if not first_install then
+if false then
     url = fetch_url()
 end
 
