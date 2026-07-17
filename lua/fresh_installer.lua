@@ -27,4 +27,36 @@ local file = fs.open("startup.lua", "w")
 file.write("shell.run('install_manager.lua')")
 file.close()
 
-shell.run("turtle_command/install_manager.lua")
+if not fs.exists("turtle_command/url.txt") then
+    local file = fs.open("turtle_command/url.txt","w")
+    print("Input the target server url: ")
+    file.write(read())
+    file.close()
+end
+
+if not fs.exists("turtle_command/api_key.txt") then
+    local file = fs.open("turtle_command/api_key.txt","w")
+    print("Input the api key: ")
+    file.write(read())
+    file.close()
+end
+
+if not fs.exists("turtle_command/facing.txt") then
+    local file = fs.open("turtle_command/facing.txt","w")
+    print("Input the first letter of the direction the turtle is facing (e.g. w for west): ")
+    file.write(read())
+    file.close()
+end
+
+if not fs.exists("turtle_command/block_cache.txt") then
+    local file = fs.open("turtle_command/block_cache.txt","w")
+    file.close()
+end
+
+if not fs.exists("turtle_command/keep_alive_time.txt") then
+    local file = fs.open("turtle_command/keep_alive_time.txt","w")
+    file.write("6")
+    file.close()
+end
+
+shell.run("turtle_command/turtle_command.lua")
