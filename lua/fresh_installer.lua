@@ -10,6 +10,10 @@ local download_list = {
     "sha1.lua",
 }
 
+if fs.exists("turtle_command/") then
+    fs.delete("turtle_command/")
+end
+
 for i, v in pairs(download_list) do
     local response, fail_reason = nil, nil
     response, fail_reason = http.get("https://raw.githubusercontent.com/C2Gamser/turtle_command/refs/heads/master/lua/"..v)

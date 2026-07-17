@@ -18,11 +18,15 @@ local function setup_files()
             type = "string",
         })
 
+        settings.set("api_key", "")
+
         settings.define("ping_time", {
             description = "The number of seconds the turtle waits between sending keep alive pings.",
             default = 6,
             type = "number",
         })
+
+        settings.set("ping_time", 6)
 
         settings.define("url", {
             description = "The URL of the server that this turtle will connect to.",
@@ -30,8 +34,12 @@ local function setup_files()
             type = "string",
         })
 
+        settings.set("url", "")
+
         settings.save("turtle_command/config.settings")
     end
+
+    error()
 
     if not fs.exists("turtle_command/facing.txt") then
         local file = fs.open("turtle_command/facing.txt","w")
@@ -128,12 +136,6 @@ end
 
 -- Adds a block to the block cache
 local function append_block_cache(block_cache)
-    -- If the file doesnt exist, create it
-    if not fs.exists("turtle_command/block_cache.txt") then
-        local f = fs.open("turtle_command/block_cache.txt", "w")
-        f.close()
-    end
-
     local f = fs.open("turtle_command/block_cache.txt", "r")
     local block_cash_old = textutils.unserialise(f.readAll())
     f.close()
