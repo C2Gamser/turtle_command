@@ -30,21 +30,24 @@ file.close()
 if not fs.exists("turtle_command/url.txt") then
     local file = fs.open("turtle_command/url.txt","w")
     print("Input the target server url: ")
-    file.write(read())
+    local msg = read()
+    file.write(msg)
     file.close()
 end
 
 if not fs.exists("turtle_command/api_key.txt") then
     local file = fs.open("turtle_command/api_key.txt","w")
     print("Input the api key: ")
-    file.write(read())
+    local msg = read()
+    file.write(msg)
     file.close()
 end
 
 if not fs.exists("turtle_command/facing.txt") then
     local file = fs.open("turtle_command/facing.txt","w")
     print("Input the first letter of the direction the turtle is facing (e.g. w for west): ")
-    file.write(read())
+    local msg = read()
+    file.write(msg)
     file.close()
 end
 
