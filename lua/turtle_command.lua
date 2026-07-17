@@ -33,7 +33,7 @@ local function setup_files()
     end
 
     if not fs.exists("turtle_command/block_cache.txt") then
-        local file = fs.open("turtle_command/facing.txt","w")
+        local file = fs.open("turtle_command/block_cache.txt","w")
         file.close()
     end
 

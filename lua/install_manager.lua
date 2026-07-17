@@ -1,5 +1,5 @@
 -- For installation of turtle_command run:
--- wget run https://raw.githubusercontent.com/C2Gamser/turtle_command/refs/heads/master/lua/install_manager.lua
+-- wget run https://raw.githubusercontent.com/C2Gamser/turtle_command/refs/heads/master/lua/install_manager.lua true
 
 local download_list = {
     "turtle_command.lua",
@@ -9,11 +9,7 @@ local download_list = {
     "logging.lua"
 }
 
-local first_install = false
-
-if not fs.exists("turtle_command/url.txt") then
-    first_install = true
-end
+local first_install = arg[1]
 
 -- Helper function to return the server url
 local function fetch_url()
@@ -24,6 +20,10 @@ local function fetch_url()
 end
 
 local url = nil
+
+if not first_install then
+    url = fetch_url()
+end
 
 for i, v in pairs(download_list) do
     local response, fail_reason = nil, nil
