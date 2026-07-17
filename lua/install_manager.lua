@@ -24,9 +24,6 @@ local function fetch_url()
 end
 
 local url = nil
-if false then
-    url = fetch_url()
-end
 
 for i, v in pairs(download_list) do
     local response, fail_reason = nil, nil
