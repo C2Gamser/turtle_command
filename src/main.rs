@@ -18,6 +18,7 @@ mod astar;
 use chunks::{Chunk, BlockData, WhitelistMap};
 use coordinates::Coordinate;
 use turtle_data::{Turtle, Slot, Inventory};
+use sha_file_hashing::Hashable;
 use astar::pathfind;
 #[macro_use] extern crate rocket;
 
@@ -251,12 +252,12 @@ fn get_path(whitelist: WhitelistMap, from: Coordinate, to: Coordinate, turtle_fa
 }
 
 // Registers a turtle's data, used to update turtle data files currently
-fn ws_register(reg_data: &String, connections: &Arc<TurtleConnections>) {
+fn ws_register(reg_data: &String, connections: &Arc<TurtleConnections>, turtle_id: u16) {
     let reg_data: Turtle = json::from_str(&reg_data).unwrap();
 
     reg_data.save(TURTLES_FOLDER.into());
     let response = TurtleReadable::new("status", "successful").to_ws_message();
-    connections.send_to(reg_data.id, response);
+    connections.send_to(turtle_id, response);
 }
 
 // Recieves blocks from the turtles to be stored in chunk files
@@ -272,6 +273,50 @@ fn ws_receive_blocks(reg_data: &String) {
 
         chunk.set_block(&local_coords, &BlockData { name: block.0.name.clone(), states: block.0.states.clone() });
         chunk.save(&WORLD_FOLDER);
+    }
+}
+
+fn ws_send_lua_file(file_name: &String, connections: &Arc<TurtleConnections>, turtle_id: u16) -> bool {
+    let file_data = fs::read_to_string(LUA_FOLDER.to_owned()+"/"+file_name);
+
+    let Ok(file_data) = file_data else {
+        println!("Couldn't read file path {:?}", file_data);
+        return false;
+    };
+
+    let mut send_data = HashMap::new();
+
+    send_data.insert("file_name", file_name);
+    send_data.insert("content", &file_data);
+
+    let send_data_serialized = json::to_string(&send_data).unwrap();
+
+    connections.send_to(turtle_id, TurtleReadable::new("fileData", &send_data_serialized).to_ws_message());
+    return true;
+}
+
+// This might be unsafe as people may be able to hash any file on the system based on the way im handing the path
+fn ws_verify_file(data: &String, connections: &Arc<TurtleConnections>, turtle_id: u16) {
+    let data: (String, String) = json::from_str(&data).unwrap();
+    let file_name = data.0;
+    let file_hash = data.1;
+
+    let server_file_path = LUA_FOLDER.to_owned()+"/"+&file_name;
+    let server_file_path = Path::new(&server_file_path);
+
+    let server_file_hash = server_file_path.hash();
+
+    // Verify that the message is ok
+    let Ok(server_file_hash) = server_file_hash else {
+        connections.send_to(turtle_id, TurtleReadable::new("fileNotFound", &file_name.to_string()).to_ws_message());
+        return
+    };
+
+    // Either tells the turtle the file is fine or tells it to re-download the file
+    if server_file_hash == file_hash {
+        connections.send_to(turtle_id, TurtleReadable::new("fileIdentical", &file_name.to_string()).to_ws_message());
+    } else {
+        ws_send_lua_file(&file_name.to_string(), connections, turtle_id);
     }
 }
 
@@ -335,8 +380,9 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
                 match message {
                     Ok(message) => {
                         let _ = match message.instruction.as_str()  {
-                        "register" => ws_register(&message.data, &connections),
+                        "register" => ws_register(&message.data, &connections, id),
                         "sendBlocks" => ws_receive_blocks(&message.data),
+                        "verifyFile" => ws_verify_file(&message.data, &connections, id),
                         "ping" => {},
 
                         // Unexpected result, we just ignore it
@@ -420,7 +466,7 @@ fn connected_ids(connections: &State<Arc<TurtleConnections>>) -> json::Json<Vec<
 const LUA_FOLDER: &str = "lua";
 const WORLD_FOLDER: &str = "world_data";
 const TURTLES_FOLDER: &str = "turtles";
-const FRONTEND_FOLDER: &str = "frontend/";
+const FRONTEND_FOLDER: &str = "frontend";
 
 #[launch]
 fn rocket() -> _ {
@@ -451,7 +497,7 @@ fn rocket() -> _ {
         web_command,
         connected_ids,
         serve_favicon,
-        component_test
+        component_test,
         ])
 }
 

@@ -70,24 +70,6 @@ local function verify_address(url)
     return url == my_url
 end
 
--- Takes in a list of file names (full paths) and hashes each one, returing a map of hashes to their file paths
--- Returns {file_path = hash} but for all the paths input
--- TREATS NONEXISTENT FILES AS EMPTY STRINGS
-local function verify_file_hashes(file_path_list)
-    local hashed_list = {}
-    for i, v in pairs(file_path_list) do
-        if fs.exists(v) then
-            local file = fs.open(v, "r")
-            local contents = file.readAll()
-            file.close()
-            hashed_list[v] = sha.sha1(contents)
-        else
-            hashed_list[v] = sha.sha1("")
-        end
-    end
-    return hashed_list
-end
-
 -- Returns a table containing all the items in its inventory
 local function scan_own_inventory()
     local inventory = {}
@@ -104,6 +86,5 @@ return {
     read_first_line = read_first_line,
     rewrite_file = rewrite_file,
     verify_address = verify_address,
-    verify_file_hashes = verify_file_hashes,
     scan_own_inventory = scan_own_inventory
 }

@@ -21,7 +21,7 @@ local shl     = bit.blshift
 local shr     = bit.blogic_rshift
 local h0, h1, h2, h3, h4
 
--- Note by C2: Modified this line to be local
+-- Note by C2: Modified this line to be commented out
 -- local env=getfenv()
 -- setmetatable(env,nil)
 

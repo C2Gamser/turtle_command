@@ -1,4 +1,5 @@
 local mv = require("utilities")
+local sha = require("sha1")
 local thready = require("thready")
 
 -- Helper function to return url, api_key
@@ -210,9 +211,22 @@ local function cache_updown_move()
     return true
 end
 
+-- Formats a message like {instruction = instruction, data = data} and then json serializes it
 local function format_message(instruction, data)
     local message = {instruction = instruction, data = data}
     return textutils.serialiseJSON(message)
+end
+
+-- Hashes the file and sends the hash to the server
+local function verify_file_with_server(websocket, file_name)
+    if fs.exists("turtle_command/"..file_name) then
+        local file = fs.open("turtle_command/"..file_name, "r")
+        local contents = file.readAll()
+        file.close()
+        local hash = sha.sha1(contents)
+        local send_data = {file_name, hash}
+        websocket.send(format_message("verifyFile", textutils.serialiseJSON(send_data)))
+    end
 end
 
 -- Opens the block cache file, sends all of the data to the server, then clears the file.
@@ -263,6 +277,22 @@ end
 local function ws_acknowledge(websocket)
     local message = format_message("acknowledge", textutils.serialiseJSON(textutils.json_null))
     websocket.send(message)
+end
+
+local function ws_save_file(data)
+    local file_data = textutils.unserialiseJSON(data)
+    local file_name = file_data["file_name"]
+    local file_content = file_data["content"]
+
+    if fs.exists("turtle_command/"..file_name) then
+        print("Overwriting turtle_command/"..file_name)
+    end
+
+    local file = fs.open("turtle_command/"..file_name, "w")
+    file.write(file_content)
+    file.close()
+
+    print("Wrote response data to turtle_command/"..file_name)
 end
 
 -- Creates a websocket with the server address in url.txt
@@ -361,14 +391,20 @@ local function handle_websocket_message(websocket, event_name, url, message, is_
         handle_path(websocket, data)
     elseif kind == "register" then
         ws_register(websocket)
+    elseif kind == "fileData" then
+        ws_save_file(data)
     elseif kind == "testBlockSend" then -- DEBUG
         append_inspect_all()
         send_block_cache(websocket)
+    else
+        print("Unknown websocket response. Ignoring.")
     end
 
     -- TODO: Deal with more responses
 end
 
+-- Sends pings every few seconds to the server to tell it that this turtle is connected
+-- The delay is set in turtle_command/keep_alive_time.txt
 local function keep_alive_ping(websocket)
     while true do
         websocket.send(format_message("ping", "ping"))
