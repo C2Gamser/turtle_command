@@ -1,14 +1,6 @@
 -- For installation of turtle_command run:
 -- wget run https://raw.githubusercontent.com/C2Gamser/turtle_command/refs/heads/master/lua/fresh_installer.lua
 
-local download_list = {
-    "turtle_command.lua",
-    "install_manager.lua",
-    "move_utilities.lua",
-    "thready.lua",
-    "logging.lua"
-}
-
 -- Helper function to return the server url
 local function fetch_url()
     local url_file = fs.open("turtle_command/url.txt","r")
@@ -16,6 +8,15 @@ local function fetch_url()
     url_file.close()
     return url
 end
+
+local download_list = {
+    "turtle_command.lua",
+    "install_manager.lua",
+    "utilities.lua",
+    "thready.lua",
+    "logging.lua",
+    "sha1.lua"
+}
 
 local url = nil
 

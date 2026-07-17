@@ -1,5 +1,3 @@
-import { MultiAudio } from "/frontend/scripts/click_audio.js";
-
 class Coordinates {
     constructor(x, y, z) {
         this.x = x;
@@ -91,16 +89,6 @@ class TurtleComponent extends HTMLElement {
                 <div id="coordinates">${new_turt.coordinates.toString()}</div>
                 <div id="fuel">Fuel: ${new_turt.fuel.toString()}</div>
             `;
-
-            let click_audio = new MultiAudio("/frontend/resources/audio/Click_stereo.ogg", 8)
-
-            for (const element of this.querySelectorAll("button"))  {
-                if (element.nodeName == "BUTTON") {
-                    element.addEventListener("click", function () {
-                        click_audio.play()
-                    });
-                }
-            }
 
             this.setAttribute("data-connected", new_turt.connected)
 

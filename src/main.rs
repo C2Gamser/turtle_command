@@ -460,3 +460,4 @@ fn rocket() -> _ {
 // See if you can move over the pathfinding and world exploration code from the turtleswarm project
 // Add a login system so only people who are authorized can send commands to turtles (maybe)
 // Add world file importing
+// Add a system so turtles can hash their files to determine if they are out of date

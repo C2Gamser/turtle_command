@@ -4,9 +4,10 @@
 local download_list = {
     "turtle_command.lua",
     "install_manager.lua",
-    "move_utilities.lua",
+    "utilities.lua",
     "thready.lua",
-    "logging.lua"
+    "logging.lua",
+    "sha1.lua",
 }
 
 for i, v in pairs(download_list) do

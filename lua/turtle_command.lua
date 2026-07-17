@@ -1,6 +1,5 @@
-local mv = require("move_utilities")
+local mv = require("utilities")
 local thready = require("thready")
-local logging = require("logging")
 
 -- Helper function to return url, api_key
 local function fetch_conneciton_data()
@@ -69,16 +68,6 @@ local function parse_response(input)
     return decoded_json.instruction, decoded_json.data
 end
 
--- Returns a table containing all the items in its inventory
-local function scan_own_inventory()
-    local inventory = {}
-    for i = 1, 16 do
-        inventory[i] = turtle.getItemDetail(i)
-    end
-
-    return inventory
-end
-
 -- Gets a bunch of data about this turtle
 local function fetch_own_status()
     local x, y, z = gps.locate(1)
@@ -90,7 +79,7 @@ local function fetch_own_status()
     local computer_id = os.getComputerID()
     local equipped_left = turtle.getEquippedLeft()
     local equipped_right = turtle.getEquippedRight()
-    local inventory = scan_own_inventory()
+    local inventory = mv.scan_own_inventory()
 
     local fuel = turtle.getFuelLevel()
 
