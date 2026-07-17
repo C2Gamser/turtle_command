@@ -4,7 +4,18 @@ local thready = require("thready")
 
 -- Helper function to return url, api_key
 local function fetch_conneciton_data()
-    return settings.get("url"), settings.get("api_key")
+    local url = settings.get("url")
+    local api_key = settings.get("api_key")
+
+    if url == "" then
+        url = nil
+    end
+
+    if api_key == "" then
+        api_key = nil
+    end
+
+    return url, api_key
 end
 
 -- Makes sure that all the files that must exist, do
@@ -12,13 +23,15 @@ end
 -- In the case of the direction file, it will not allow the user to continue the program unless it has a direciton in it (n, s, e, w)
 local function setup_files()
     if not settings.load("turtle_command/config.settings") then
+        settings.set("api_key", "")
+
         settings.define("api_key", {
             description = "The API key required to establish a websocket connection with the server. On the server side this is located in api_key.txt",
             default = "",
             type = "string",
         })
 
-        settings.set("api_key", "")
+        settings.set("ping_time", 6)
 
         settings.define("ping_time", {
             description = "The number of seconds the turtle waits between sending keep alive pings.",
@@ -26,7 +39,7 @@ local function setup_files()
             type = "number",
         })
 
-        settings.set("ping_time", 6)
+        settings.set("url", "")
 
         settings.define("url", {
             description = "The URL of the server that this turtle will connect to.",
@@ -34,12 +47,8 @@ local function setup_files()
             type = "string",
         })
 
-        settings.set("url", "")
-
         settings.save("turtle_command/config.settings")
     end
-
-    error()
 
     if not fs.exists("turtle_command/facing.txt") then
         local file = fs.open("turtle_command/facing.txt","w")
@@ -57,11 +66,11 @@ local function setup_files()
     end
 
     local url, api_key = fetch_conneciton_data()
-    if url == nil then
+    if not url then
         print("Warning: No URL in turtle_command/confing.settings!")
     end
 
-    if api_key == nil then
+    if not api_key then
         print("Warning: No API key in turtle_command/confing.settings!")
     end
 

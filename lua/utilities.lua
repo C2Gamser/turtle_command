@@ -63,7 +63,8 @@ local function verify_address(url)
     local i, j = string.find(url, "//[^/]+/?")
     url = string.gsub(string.sub(url, i, j), "/", "")
 
-    local my_url = read_first_line("turtle_command/url.txt")
+    settings.load("turtle_command/config.settings")
+    local my_url = settings.get("url")
     i, j = string.find(my_url, "//[^/]+/?")
     my_url = string.gsub(string.sub(my_url, i, j), "/", "")
 
