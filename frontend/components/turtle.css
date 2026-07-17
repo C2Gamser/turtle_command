@@ -28,8 +28,6 @@ x-turtle {
     border-image-outset: 0.5em;
     border-style: solid;
 
-    animation: show 100ms 100ms linear forwards;
-
     /* pre animation state */
     color: white;
 
@@ -38,7 +36,7 @@ x-turtle {
 
         font-size: var(--x-turtle-font-size);
         width: var(--button-size);
-        height: calc(var(--button-size) + 0.1em);
+        height: calc(var(--button-size) + 0.16em);
 
         position: absolute;
         top: calc(-1 * var(--button-size) - 0.72em);
@@ -81,20 +79,6 @@ x-turtle {
     }
 }
 
-
-
 [data-connected="true"] {
-  color: black;
-}
-
-@keyframes show {
-    0% {
-        color: white;
-    }
-    50% {
-        color: black;
-    }
-    100% {
-        color: white;
-    }
+    color: white;
 }
