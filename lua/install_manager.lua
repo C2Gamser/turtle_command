@@ -9,6 +9,10 @@ local download_list = {
     "logging.lua"
 }
 
+print(arg[1])
+
+error()
+
 local first_install = false
 if arg[1] == "true" then
     first_install = true
