@@ -79,7 +79,7 @@ class TurtleComponent extends HTMLElement {
         .then((response) => response.json())
         .then((data) => {
             let r = data;
-            console.log(r)
+            console.info(r)
 
             let new_turt = new Turtle(r)
 

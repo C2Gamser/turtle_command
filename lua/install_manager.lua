@@ -48,4 +48,5 @@ if fs.exists("install_manager.lua") and fs.exists("turtle_command/install_manage
     fs.delete("install_manager.lua")
 end
 
+
 shell.run("turtle_command/turtle_command.lua")

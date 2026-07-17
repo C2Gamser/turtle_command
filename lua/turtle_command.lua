@@ -255,6 +255,10 @@ local function ws_register(websocket)
     send_data.inventory_contents = nil
     send_data.inventory_size = nil
 
+    if send_data.inventory[2] == nil then
+        send_data.inventory[2] = {}
+    end
+
     -- Makes sure that empty inventory slots are still counted as null when serialized to json
     for i = 1, 16 do
         if send_data.inventory[2][i] == nil then
