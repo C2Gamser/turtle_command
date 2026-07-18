@@ -1,8 +1,10 @@
+use log::info;
 use rocket::{Config, tokio};
 use rocket::form::Form;
 use rocket::fs::{FileServer, NamedFile};
 use rocket::response::stream::EventStream;
 use serde::{Deserialize, Serialize};
+use std::thread::ThreadId;
 use std::{collections::HashMap, path::PathBuf, path::Path, vec, fs};
 use std::sync::{Arc, Mutex};
 use uuid::{Uuid};
@@ -299,7 +301,7 @@ fn resolve_safe_path(file_name: &str) -> Option<PathBuf> {
     let base = Path::new(LUA_FOLDER).canonicalize().ok()?;
     let candidate = base.join(file_name);
 
-    // canonicalize() resolves the path + requires it to exist.
+    // canonicalize() resolves the path + requires it to exist
     // This also collapses any ".." components against the real filesystem
     let canonical = candidate.canonicalize().ok()?;
 
@@ -371,9 +373,11 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
                 // If we timed out
                 let Ok(message) = message else {
                     println!("Connection timed out with turtle ID {}, closing.",id);
+
                     connections.send_to(id, TurtleReadable::new("closingConnection", "closing").to_ws_message());
                     let mut close_timer = interval(Duration::from_secs(1));
                     close_timer.tick().await;
+
                     break
                 };
 
@@ -419,6 +423,23 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
         rocket::tokio::select! {
             _ = outgoing => {},
             _ = incoming => {},
+        }
+
+        info!("Turtle id {} is disconnecting.",id);
+
+        // Loads this turtle to edit its data
+        let this_turtle = Turtle::load(TURTLES_FOLDER.into(), id);
+
+        match this_turtle {
+            Some(mut turtle) => {
+                // Sets its component
+                turtle.connected = false;
+                // Saves it back to the file
+                turtle.save(TURTLES_FOLDER.into());
+            }
+            _ => {
+                warn!("Couldn't set turtle id {} as disconnected! Did it EVER register?",id);
+            }
         }
 
         connections.unregister(id);
@@ -480,6 +501,23 @@ fn connected_ids(connections: &State<Arc<TurtleConnections>>) -> json::Json<Vec<
     json::Json(connections)
 }
 
+// We send back json containing data the user may need to manage turtles
+// Unlike connected ids, this function returns every id that has ever registered with the server
+#[get("/all_ids")]
+fn all_ids() -> json::Json<Vec<String>> {
+    let registered_turtles = fs::read_dir(TURTLES_FOLDER).unwrap();
+
+    let turtle_list = registered_turtles
+        .filter_map(|f| f.ok())
+        .filter_map(|f|Some(f.file_name()))
+        .filter_map(|f|Path::new(&f)
+        .file_stem()
+        .map(|f|f.to_string_lossy().to_string().to_owned()))
+        .collect();
+
+    json::Json(turtle_list)
+}
+
 const LUA_FOLDER: &str = "lua";
 const WORLD_FOLDER: &str = "world_data";
 const TURTLES_FOLDER: &str = "turtles";
@@ -515,6 +553,7 @@ fn rocket() -> _ {
         connected_ids,
         serve_favicon,
         component_test,
+        all_ids,
         ])
 }
 

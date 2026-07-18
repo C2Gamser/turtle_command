@@ -82,3 +82,7 @@ x-turtle {
 [data-connected="true"] {
     color: white;
 }
+
+[data-connected="false"] {
+    color: red;
+}

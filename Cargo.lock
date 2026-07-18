@@ -1769,6 +1769,7 @@ name = "turtle_command"
 version = "0.1.0"
 dependencies = [
  "ciborium",
+ "log",
  "lz4_flex",
  "pathfinding",
  "rocket",

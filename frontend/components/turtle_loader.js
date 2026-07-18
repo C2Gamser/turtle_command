@@ -6,12 +6,10 @@ class TurtleLoaderComponent extends HTMLElement {
     }
 
     update() {
-        // Fetches the connected turtles
-        // Gets a list of connected turtle ids
-        fetch("/connected_ids")
+        // Gets a list of all turtle ids that have ever registered
+        fetch("/all_ids")
         .then((response) => response.json())
         .then((data) => {
-
             this.innerHTML = " "
             // Manages click audio for all loaded turtles
             let click_audio = new MultiAudio("/frontend/resources/audio/Click_stereo.ogg", 8)

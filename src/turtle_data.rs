@@ -1,4 +1,4 @@
-use std::{ffi::OsString, fs, path::PathBuf};
+use std::fs;
 
 use rocket::serde::json;
 
@@ -45,18 +45,28 @@ pub struct Turtle {
 
 impl Turtle {
     // Saves itself to a file in path with the name being its id
-    pub fn save(&self, path: PathBuf) {
+    pub fn save(&self, path: String) {
         let string_self = json::to_pretty_string(&self).unwrap();
-        let mut my_path = self.id.to_string();
-        my_path.push_str(".json");
-        
-        fs::write(path.join(my_path), string_self).expect(&format!("Should be able to write to `turtles/{}.json`",self.id));
+        let my_path = self.id.to_string()+".json";
+
+        fs::write(path+&my_path, string_self).expect(&format!("Should be able to write to `turtles/{}.json`",self.id));
     }
 
-    pub fn load(filepath: OsString) -> Self {
-        let  data = fs::read_to_string(&filepath).expect(&format!("Should be able to read `{}`",filepath.display()));
-        let new_self: Turtle = json::from_str(&data).unwrap();
+    // Loads a turtle from the given turtle folder using the id
+    pub fn load(path: String, id: u16) -> Option<Self> {
 
-        new_self
+        let turtle_path = path+"/"+&id.to_string()+".json";
+
+        let data = fs::read_to_string(&turtle_path);
+
+        match data {
+            Ok(string) => {
+                let new_self: Turtle = json::from_str(&string).unwrap();
+                Some(new_self)
+            }
+            Err(_) => {
+                None
+            }
+        }
     }
 }

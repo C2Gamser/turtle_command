@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 ciborium = "0.2.2"
+log = "0.4.33"
 lz4_flex = "0.13.1"
 pathfinding = "4.15.0"
 rocket = { version = "0.5.1", features = ["json"] }
