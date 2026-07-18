@@ -308,7 +308,7 @@ local function ws_save_file(data)
     file.write(file_content)
     file.close()
 
-    print("Wrote to turtle_command/"..file_name)
+    print("SF: Wrote to "..file_name)
 end
 
 -- Creates a websocket with the server address in url.txt
