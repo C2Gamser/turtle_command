@@ -304,15 +304,11 @@ local function ws_save_file(data)
     local file_name = file_data["file_name"]
     local file_content = file_data["content"]
 
-    if fs.exists("turtle_command/"..file_name) then
-        print("Overwriting turtle_command/"..file_name)
-    end
-
     local file = fs.open("turtle_command/"..file_name, "w")
     file.write(file_content)
     file.close()
 
-    print("Wrote response data to turtle_command/"..file_name)
+    print("Wrote to turtle_command/"..file_name)
 end
 
 -- Creates a websocket with the server address in url.txt
@@ -482,6 +478,7 @@ if not websocket then
 end
 
 ws_register(websocket)
+-- Runs verify_file_with_server on every lua file in turtle_command/
 thready.spawn("verify_lua_files", verify_lua_files, websocket)
 
 -- NOTE: Change made by C2, the first argument passed to all listeners is the global websocket!

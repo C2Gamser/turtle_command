@@ -3,7 +3,6 @@
 
 local download_list = {
     "turtle_command.lua",
-    "install_manager.lua",
     "utilities.lua",
     "thready.lua",
     "logging.lua",
@@ -29,7 +28,7 @@ for i, v in pairs(download_list) do
 end
 
 local file = fs.open("startup.lua", "w")
-file.write("shell.run('turtle_command/install_manager.lua')")
+file.write("shell.run('turtle_command/turtle_command.lua')")
 file.close()
 
 shell.run("turtle_command/turtle_command.lua")
