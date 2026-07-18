@@ -395,7 +395,11 @@ local function handle_terminate(websocket)
 
     -- Shuts down thready quickly
     thready.running = false
-    os.queueEvent("terminate")
+
+    -- Shutdown this multishell tab if it isn't the only one
+    if multishell.getCount() > 1 then
+        os.queueEvent("terminate")
+    end
 end
 
 local function handle_websocket_message(websocket, event_name, url, message, is_binary)
