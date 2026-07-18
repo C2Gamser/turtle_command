@@ -4,16 +4,17 @@
     <!-- Imports components -->
     <link rel="stylesheet" href="/frontend/style/index.css">
     <script type="module" src="/frontend/scripts/register_components.js" defer></script>
-    <style id="turtleFontSize">
-        :root{
-            --x-turtle-font-size: 35px;
+    <style>
+        :root {
+            --zoom-level: 1;
+            --zoom-border-correction: 1;
         }
     </style>
 </head>
 <body>
     <p>Test:</p>
-    <label for ="fontSizeSlider">Scale: <span id="fontSizeValue">35</span></label>
-    <input autocomplete="off" type="range" id="fontSizeSlider" min="10" max="70" value="35" step="5">
+    <label for ="fontSizeSlider">Scale: <span id="fontSizeValue">1.0</span></label>
+    <input autocomplete="off" type="range" id="fontSizeSlider" min="0.5" max="1.5" value="1" step="0.1">
 
     <div>&nbsp;</div>
     <hr>
@@ -21,15 +22,26 @@
     <x-turtle-loader></x-turtle-loader>
 
     <script type="module">
+        // Browser agent sniffing *SNIFF*
+        // Temp fix for this cross browser bug (https://bugzilla.mozilla.org/show_bug.cgi?id=2021775)
+        let needs_correction = false
+        // ARE WE FIREFOX?
+        if (window.navigator.userAgent.includes("Firefox") || window.navigator.userAgent.includes("firefox")) {
+            needs_correction = true
+        }
+
         import { MultiAudio } from "/frontend/scripts/click_audio.js";
 
         const slider = document.getElementById('fontSizeSlider');
         const valueLabel = document.getElementById('fontSizeValue');
 
         slider.addEventListener('input', () => {
-            const size = slider.value;
-            document.documentElement.style.setProperty('--x-turtle-font-size', `${size}px`);
-            valueLabel.textContent = size;
+            const zoom = slider.value;
+            document.documentElement.style.setProperty('--zoom-level', `${zoom}`);
+            if (needs_correction) {
+                document.documentElement.style.setProperty('--zoom-border-correction', `${zoom}`);
+            }
+            valueLabel.textContent = `${Number.parseFloat(zoom).toFixed(1)}`;
         });
 
         let multi_audio = new MultiAudio("/frontend/resources/audio/Click_stereo.ogg", 8)

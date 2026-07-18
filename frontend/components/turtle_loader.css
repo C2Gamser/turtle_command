@@ -1,11 +1,10 @@
 x-turtle-loader {
-    font-size: var(--x-turtle-font-size);
-
     display: flex;
     flex-direction: row;
     flex-wrap: wrap;
-    row-gap: 2em;
-    column-gap: 1.5em;
-    margin-top: 0.4em;
+    row-gap: 50px;
+    column-gap: 65px;
     padding: 30px;
+
+    zoom: var(--zoom-level);
 }

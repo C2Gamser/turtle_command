@@ -1,8 +1,6 @@
-:root {
-    --x-turtle-font-size: 25px;
-}
-
 x-turtle {
+    font-size: 35px;
+
     /* preload images */
     content:
     url(/frontend/resources/images/buttons/turned_on_green.png)
@@ -11,61 +9,52 @@ x-turtle {
 
     display:block;
     position: relative;
-    width: 12em;
-    height: 4em;
-    padding: 0.2em;
+    width: 420px;
+    height: 140px;
+    padding: 30px;
     background: black;
     color: white;
     word-wrap: break-word;
 
-    /* Determines the scale of the entire object */
-    font-size: var(--x-turtle-font-size);
-
-    margin-top: 1.6em;
+    margin-top: 40px;
 
     /* Handles the border */
     image-rendering: pixelated;
     border-image-source: url("/frontend/resources/images/border_modified.png");
-    border-image-slice: 8;
-    border-image-width: 0.5em;
-    border-image-outset: 0.5em;
+    border-image-slice: calc(8 * var(--zoom-border-correction));
+    border-image-width: 20px;
+    border-image-outset: 0px;
     border-style: solid;
 
     /* pre animation state */
     color: white;
 
     .greenLight {
-        font-size: var(--x-turtle-font-size);
-
-        --light-size: 0.5em;
-        width: calc(var(--light-size));
-        height: calc(var(--light-size));
+        width: 30px;
+        height: 30px;
 
         position: absolute;
-        top: -1em;
-        left: 10em;
+        top: -30px;
+        right: 50px;
 
         /* Handles the border */
         image-rendering: pixelated;
         border-image-source: url("/frontend/resources/images/border_modified.png");
-        border-image-slice: 8;
-        border-image-width: 0.5em;
-        border-image-outset: 0.3em;
+        border-image-slice: calc(8 * var(--zoom-border-correction));
+        border-image-width: 20px;
+        border-image-outset: 10px;
         border-style: solid;
 
         background-color: #c7c86e;
     }
 
     .powerButton {
-        --button-size: 1.3em;
+        width: 50px;
+        height: 50px;
 
-        font-size: var(--x-turtle-font-size);
-        width: var(--button-size);
-        height: calc(var(--button-size) + 0.16em);
-
-        position: absolute;
-        top: calc(-1 * var(--button-size) - 0.72em);
-        left: 0.5em;
+        position:absolute;
+        top: -50px;
+        left: 4%;
 
         background-image: url(/frontend/resources/images/buttons/turned_on_green.png);
         background-repeat: no-repeat;
@@ -79,9 +68,9 @@ x-turtle {
         image-rendering: pixelated;
         border-style: solid;
         border-image: url("/frontend/resources/images/border_modified.png");
-        border-image-slice: 5;
-        border-image-width: 0.32em 0.32em 0 0.32em;
-        border-image-outset: 0.3em 0.3em 0 0.3em;
+        border-image-slice: calc(5 * var(--zoom-border-correction));
+        border-image-width: 16px 16px 0 16px;
+        border-image-outset: 15px 15px 0 15px;
     }
 
     .powerButton:hover {
