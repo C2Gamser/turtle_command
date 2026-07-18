@@ -77,10 +77,12 @@ end
 
 -- Gets a bunch of data about this turtle
 local function fetch_own_status()
-    local x, y, z = gps.locate(1)
+    local x, y, z = nil, nil, nil
 
-    if not x then
-        error("Coudln't get gps!")
+    local counter = 1
+    while not x and counter < 5 do
+        x, y, z = gps.locate(2)
+        counter = counter + 1
     end
 
     local computer_id = os.getComputerID()
@@ -325,7 +327,7 @@ local function establish_websocket()
     if url == nil then
         error("There is no URL in turtle_command/config.settings")
     end
-    
+
     -- The sub here gets rid of the "https" so that it can be replaced with "ws"
     -- Note: We also submit the ID so the rust server can track which websocket is which
     local server_address = "ws"..url:sub(5, -1).."/websocket?id="..os.getComputerID()

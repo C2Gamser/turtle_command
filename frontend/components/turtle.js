@@ -65,13 +65,24 @@ class Turtle {
 
 /**
  * Usage:
- * <x-turtle turtle_id=id></x-turtle>
- * where id is the turtle's id, e.g. 0
+ * <x-turtle turtle_id=id live_update=bool></x-turtle>
+ * where id is the turtle's id, e.g. 0 and live update is either true or false
+ * live update can also be changed during runtime
  */
 class TurtleComponent extends HTMLElement {
     connectedCallback() {
         this.update();
+        this.loop();
     }
+
+    // Sets it up so the turtle auto fetches data every 1.5 seconds from the server
+    loop() {
+        setInterval(() => {
+            if (this.getAttribute("live_update") == "true") {
+                this.update();
+            }
+        }, 2000);
+    };
 
     update() {
         // Fetches the turtle's data
@@ -79,22 +90,19 @@ class TurtleComponent extends HTMLElement {
         .then((response) => response.json())
         .then((data) => {
             let r = data;
-            console.info(r)
 
             let new_turt = new Turtle(r)
 
             this.innerHTML = `
                 <button class="powerButton"></button>
+                <div style="height:55px; width:55px; background: red; border-radius: 50%; filter: pixelize();"></div>
                 <div id="turtle_id">Turtle ID: ${new_turt.id}</div>
                 <div id="coordinates">${new_turt.coordinates.toString()}</div>
                 <div id="fuel">Fuel: ${new_turt.fuel.toString()}</div>
             `;
 
             this.setAttribute("data-connected", new_turt.connected)
-
         });
-
-
     }
 }
 

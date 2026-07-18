@@ -39,6 +39,7 @@ class TurtleLoaderComponent extends HTMLElement {
             for (const turtle_id of data) {
                 let new_turt = document.createElement("x-turtle");
                 new_turt.setAttribute("turtle_id", turtle_id);
+                new_turt.setAttribute("live_update", true);
 
                 // This is what tracks the turtle to add event listeners once the turtle's js is run
                 const mutation_observer = new MutationObserver(mutation_observer_callback);
