@@ -95,7 +95,7 @@ class TurtleComponent extends HTMLElement {
 
             this.innerHTML = `
                 <button class="powerButton"></button>
-                <div style="height:55px; width:55px; background: red; border-radius: 50%; filter: pixelize();"></div>
+                <img src="/frontend/resources/images/turtle_light.svg" style="filter:hue-rotate(0.33turn) saturate(0.75) brightness(3) drop-shadow(0 0 10px #ffffff)">
                 <div id="turtle_id">Turtle ID: ${new_turt.id}</div>
                 <div id="coordinates">${new_turt.coordinates.toString()}</div>
                 <div id="fuel">Fuel: ${new_turt.fuel.toString()}</div>
