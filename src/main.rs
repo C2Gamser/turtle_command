@@ -368,18 +368,7 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
 
         let incoming = async {
             loop {
-                let message = timeout(Duration::from_secs(8), source.next()).await;
-
-                // If we timed out
-                let Ok(message) = message else {
-                    println!("Connection timed out with turtle ID {}, closing.",id);
-
-                    connections.send_to(id, TurtleReadable::new("closingConnection", "closing").to_ws_message());
-                    let mut close_timer = interval(Duration::from_secs(1));
-                    close_timer.tick().await;
-
-                    break
-                };
+                let message = source.next().await;
 
                 // Verify that the message is ok
                 let Some(Ok(message)) = message else {

@@ -31,14 +31,6 @@ local function setup_files()
             type = "string",
         })
 
-        settings.set("ping_time", 6)
-
-        settings.define("ping_time", {
-            description = "The number of seconds the turtle waits between sending keep alive pings.",
-            default = 6,
-            type = "number",
-        })
-
         settings.set("url", "")
 
         settings.define("url", {
@@ -436,15 +428,6 @@ local function handle_websocket_message(websocket, event_name, url, message, is_
     -- TODO: Deal with more responses
 end
 
--- Sends pings every few seconds to the server to tell it that this turtle is connected
--- The delay is set in turtle_command/config.settings
-local function keep_alive_ping(websocket)
-    while true do
-        websocket.send(format_message("ping", "ping"))
-        os.sleep(settings.get("ping_time"))
-    end
-end
-
 local function persistent_connect(websocket)
     local counter = 0
     while true do
@@ -474,10 +457,8 @@ local function handle_websocket_closure(websocket)
     print("Websocket unexpectedly closed!")
     print("Attempting reconnect.")
 
-    thready.kill_all("keep_alive_ping")
     local websocket = persistent_connect(websocket)
     thready.spawn("verify_lua_files", verify_lua_files, websocket)
-    thready.spawn("keep_alive_ping", keep_alive_ping, websocket)
 end
 
 term.clear()
@@ -503,7 +484,6 @@ thready.spawn("verify_lua_files", verify_lua_files, websocket)
 thready.listen("websocket_handler", "websocket_message", handle_websocket_message)
 thready.listen("websocket_closed_handler", "websocket_closed", handle_websocket_closure)
 thready.listen("terminate_handler", "terminate", handle_terminate)
-thready.spawn("keep_alive_ping", keep_alive_ping, websocket)
 thready.kill_set_on_error = false
 thready.stop_on_error = false
 thready.main_loop()
