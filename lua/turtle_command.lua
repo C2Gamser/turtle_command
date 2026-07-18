@@ -309,7 +309,17 @@ local function ws_save_file(data)
     file.close()
 
     print("SF: Wrote to "..file_name)
+
+    if file_name == "turtle_command.lua" then
+        print("Recieved update to turtle_command, starting new instance.")
+        -- Start a new instance
+        shell.openTab("turtle_command/turtle_command.lua")
+        -- Shutdown this instance of turtle_command
+        os.queueEvent("terminate")
+    end
 end
+
+-- ts
 
 -- Creates a websocket with the server address in url.txt
 local function establish_websocket()
@@ -383,13 +393,9 @@ end
 local function handle_terminate(websocket)
     websocket.close()
 
-    if term.isColor() then
-        term.setTextColor(colors.red)
-    end
-
     -- Shuts down thready quickly
     thready.running = false
-    print("Terminated")
+    os.queueEvent("terminate")
 end
 
 local function handle_websocket_message(websocket, event_name, url, message, is_binary)
@@ -470,6 +476,10 @@ local function handle_websocket_closure(websocket)
     thready.spawn("keep_alive_ping", keep_alive_ping, websocket)
 end
 
+term.clear()
+term.setCursorPos(1,1)
+mv.single_color_print("Starting turtle command!", colors.green)
+
 setup_files()
 
 local websocket = establish_websocket()
@@ -477,12 +487,15 @@ if not websocket then
     websocket = persistent_connect(websocket)
 end
 
+thready.websocket = websocket
+
 ws_register(websocket)
 -- Runs verify_file_with_server on every lua file in turtle_command/
+-- IMPORTANT: If the turtle sends an updated version of turtle_command.lua,
+-- the program will start a NEW copy of itself with the new file and close the old process
 thready.spawn("verify_lua_files", verify_lua_files, websocket)
 
 -- NOTE: Change made by C2, the first argument passed to all listeners is the global websocket!
-thready.websocket = websocket
 thready.listen("websocket_handler", "websocket_message", handle_websocket_message)
 thready.listen("websocket_closed_handler", "websocket_closed", handle_websocket_closure)
 thready.listen("terminate_handler", "terminate", handle_terminate)
