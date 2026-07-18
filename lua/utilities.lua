@@ -81,11 +81,26 @@ local function scan_own_inventory()
     return inventory
 end
 
+local function try_set_color(color)
+    if term.isColor() then
+        term.setTextColor(color)
+    end
+end
+
+-- Takes in a string, sets the color to the input color, prints the string, then sets color to white
+local function single_color_print(string, color)
+    try_set_color(color)
+    print(string)
+    try_set_color(colors.white)
+end
+
 return {
     left = turnLeft,
     right = turnRight,
     read_first_line = read_first_line,
     rewrite_file = rewrite_file,
     verify_address = verify_address,
-    scan_own_inventory = scan_own_inventory
+    scan_own_inventory = scan_own_inventory,
+    try_set_color = try_set_color,
+    single_color_print = single_color_print,
 }

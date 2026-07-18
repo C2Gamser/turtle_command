@@ -24,7 +24,6 @@ for i, v in pairs(download_list) do
         local file = fs.open("turtle_command/"..v, "w")
         file.write(response.readAll())
         response.close()
-        print("Got "..v..".")
     end
 end
 

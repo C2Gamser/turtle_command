@@ -60,30 +60,18 @@ local function setup_files()
         file.close()
     end
 
-    -- Formats the text to be yellow to highlight it for the user.
-    if term.isColor() then
-        term.setTextColor(colors.yellow)
-    end
-
     local url, api_key = fetch_conneciton_data()
     if not url then
-        print("Warning: No URL in turtle_command/confing.settings!")
+        mv.single_color_print("Warning: No URL in turtle_command/confing.settings!", colors.yellow)
     end
 
     if not api_key then
-        print("Warning: No API key in turtle_command/confing.settings!")
-    end
-
-    if term.isColor() then
-        term.setTextColor(colors.white)
+        mv.single_color_print("Warning: No API key in turtle_command/confing.settings!", colors.yellow)
     end
 
     -- Errors if there is no direction in the direction file as the turtle NEEDS to know its direction.
     if mv.read_first_line("turtle_command/facing.txt") == nil then
-        if term.isColor() then
-            term.setTextColor(colors.red)
-        end
-        print("Error: No direction key in turtle_command/facing.txt, you must manually insert the direction this turtle is facing!")
+        mv.single_color_print("Error: No direction key in turtle_command/facing.txt, you must manually insert the direction this turtle is facing!", colors.red)
         error()
     end
 end
@@ -92,7 +80,6 @@ end
 -- Kind is always a string representing how to deal with response
 local function parse_response(input)
     local decoded_json = textutils.unserialiseJSON(input)
-    print("Rep I:"..decoded_json.instruction.." D:"..decoded_json.data)
     return decoded_json.instruction, decoded_json.data
 end
 
@@ -238,7 +225,8 @@ local function format_message(instruction, data)
     return textutils.serialiseJSON(message)
 end
 
--- Hashes the file and sends the hash to the server
+-- Hashes the file and sends the hash to the server, the server will likely send back fileIdentical
+-- or it may send back a fileData command which downloads a file
 local function verify_file_with_server(websocket, file_name)
     if fs.exists("turtle_command/"..file_name) then
         local file = fs.open("turtle_command/"..file_name, "r")
@@ -247,6 +235,17 @@ local function verify_file_with_server(websocket, file_name)
         local hash = sha.sha1(contents)
         local send_data = {file_name, hash}
         websocket.send(format_message("verifyFile", textutils.serialiseJSON(send_data)))
+    end
+end
+
+-- Runs verify_file_with_server on every lua file in turtle_command/
+local function verify_lua_files(websocket)
+    local file_list = fs.list("turtle_command/")
+    for i, v in pairs(file_list) do
+        local i, j = string.find(v, "[^%.]*%.lua")
+        if i ~= nil then
+            verify_file_with_server(websocket, v)
+        end
     end
 end
 
@@ -414,11 +413,18 @@ local function handle_websocket_message(websocket, event_name, url, message, is_
         ws_register(websocket)
     elseif kind == "fileData" then
         ws_save_file(data)
+    elseif kind == "fileIdentical" then
+        -- Do nothing
+    elseif  kind == "status" and data == "successful" then
+        -- Do nothing
     elseif kind == "testBlockSend" then -- DEBUG
         append_inspect_all()
         send_block_cache(websocket)
     else
-        print("Unknown websocket response. Ignoring.")
+        if not data then
+            data = ""
+        end
+        mv.single_color_print("Rep K:"..kind.." D:"..data.." unknown.", colors.lightGray)
     end
 
     -- TODO: Deal with more responses
@@ -464,6 +470,7 @@ local function handle_websocket_closure(websocket)
 
     thready.kill_all("keep_alive_ping")
     local websocket = persistent_connect(websocket)
+    thready.spawn("verify_lua_files", verify_lua_files, websocket)
     thready.spawn("keep_alive_ping", keep_alive_ping, websocket)
 end
 
@@ -475,6 +482,7 @@ if not websocket then
 end
 
 ws_register(websocket)
+thready.spawn("verify_lua_files", verify_lua_files, websocket)
 
 -- NOTE: Change made by C2, the first argument passed to all listeners is the global websocket!
 thready.websocket = websocket
