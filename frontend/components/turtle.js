@@ -74,9 +74,10 @@ class TurtleComponent extends HTMLElement {
         // Sets up the turtle's elements
         this.innerHTML = `
             <button class="powerButton"></button>
-            <div class="turtle_id"></div>
-            <div class="turtle_coordinates"></div>
-            <div class="turtle_fuel"></div>
+            <img class="greenLight" src=/frontend/resources/images/turtle_green_light_off.png>
+            <div class="turtleID"></div>
+            <div class="coordinates"></div>
+            <div class="fuel"></div>
         `;
 
         this.update();
@@ -100,13 +101,13 @@ class TurtleComponent extends HTMLElement {
             let r = data;
 
             let new_turt = new Turtle(r)
-            let turtle_id_div = this.querySelector("div.turtle_id")
+            let turtle_id_div = this.querySelector("div.turtleID")
             turtle_id_div.innerText = `Turtle ID: ${new_turt.id}`
 
-            let coordinates_div = this.querySelector("div.turtle_coordinates")
+            let coordinates_div = this.querySelector("div.coordinates")
             coordinates_div.innerText = `${new_turt.coordinates.toString()}`
 
-            let fuel_div = this.querySelector("div.turtle_fuel")
+            let fuel_div = this.querySelector("div.fuel")
             fuel_div.innerText = `Fuel: ${new_turt.fuel.toString()}`
 
             this.setAttribute("data-connected", new_turt.connected)

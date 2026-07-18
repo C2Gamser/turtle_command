@@ -4,7 +4,10 @@
 
 x-turtle {
     /* preload images */
-    content:url(/frontend/resources/images/buttons/turned_on_green.png) url(/frontend/resources/images/buttons/turned_on_hover_green.png);
+    content:
+    url(/frontend/resources/images/buttons/turned_on_green.png)
+    url(/frontend/resources/images/buttons/turned_on_hover_green.png)
+    url("/frontend/resources/images/turtle_green_light_on.png");
 
     display:block;
     position: relative;
@@ -31,7 +34,29 @@ x-turtle {
     /* pre animation state */
     color: white;
 
-    .powerButton{
+    .greenLight {
+        font-size: var(--x-turtle-font-size);
+
+        --light-size: 0.5em;
+        width: calc(var(--light-size));
+        height: calc(var(--light-size));
+
+        position: absolute;
+        top: -1em;
+        left: 10em;
+
+        /* Handles the border */
+        image-rendering: pixelated;
+        border-image-source: url("/frontend/resources/images/border_modified.png");
+        border-image-slice: 8;
+        border-image-width: 0.5em;
+        border-image-outset: 0.3em;
+        border-style: solid;
+
+        background-color: #c7c86e;
+    }
+
+    .powerButton {
         --button-size: 1.3em;
 
         font-size: var(--x-turtle-font-size);
@@ -79,10 +104,7 @@ x-turtle {
     }
 }
 
-[data-connected="true"] {
-    color: white;
-}
-
+/* makes turtle text red if it isn't connected */
 [data-connected="false"] {
     color: red;
 }
