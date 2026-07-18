@@ -353,6 +353,21 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
 
     info!("Turtle id {} is connecting.",id);
 
+    // Loads this turtle to edit its data
+    let this_turtle = Turtle::load(TURTLES_FOLDER.into(), id);
+    match this_turtle {
+        Some(mut turtle) => {
+            // Sets its component
+            turtle.connected = true;
+            // Saves it back to the file
+            turtle.save(TURTLES_FOLDER.into());
+        }
+        _ => {
+            warn!("Couldn't modify {}.json as connected! Did it register?",id);
+        }
+    }
+
+
     let connections = connections.inner().clone();
     let (tx, mut rx) = mpsc::unbounded_channel::<ws::Message>();
     connections.register(id, tx);
@@ -429,7 +444,7 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
                 turtle.save(TURTLES_FOLDER.into());
             }
             _ => {
-                warn!("Couldn't set turtle id {} as disconnected! Did it EVER register?",id);
+                warn!("Couldn't modify {}.json as disconnected! Did it EVER register?",id);
             }
         }
 

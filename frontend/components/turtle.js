@@ -71,6 +71,14 @@ class Turtle {
  */
 class TurtleComponent extends HTMLElement {
     connectedCallback() {
+        // Sets up the turtle's elements
+        this.innerHTML = `
+            <button class="powerButton"></button>
+            <div class="turtle_id"></div>
+            <div class="turtle_coordinates"></div>
+            <div class="turtle_fuel"></div>
+        `;
+
         this.update();
         this.loop();
     }
@@ -92,14 +100,14 @@ class TurtleComponent extends HTMLElement {
             let r = data;
 
             let new_turt = new Turtle(r)
+            let turtle_id_div = this.querySelector("div.turtle_id")
+            turtle_id_div.innerText = `Turtle ID: ${new_turt.id}`
 
-            this.innerHTML = `
-                <button class="powerButton"></button>
-                <img src="/frontend/resources/images/turtle_light.svg" style="filter:hue-rotate(0.33turn) saturate(0.75) brightness(3) drop-shadow(0 0 10px #ffffff)">
-                <div id="turtle_id">Turtle ID: ${new_turt.id}</div>
-                <div id="coordinates">${new_turt.coordinates.toString()}</div>
-                <div id="fuel">Fuel: ${new_turt.fuel.toString()}</div>
-            `;
+            let coordinates_div = this.querySelector("div.turtle_coordinates")
+            coordinates_div.innerText = `${new_turt.coordinates.toString()}`
+
+            let fuel_div = this.querySelector("div.turtle_fuel")
+            fuel_div.innerText = `Fuel: ${new_turt.fuel.toString()}`
 
             this.setAttribute("data-connected", new_turt.connected)
         });
