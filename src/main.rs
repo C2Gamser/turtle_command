@@ -351,6 +351,8 @@ fn ws_verify_file(data: &String, connections: &Arc<TurtleConnections>, turtle_id
 fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnections>>, _key: ApiKey) -> ws::Channel<'static> {
     use rocket::futures::{SinkExt, StreamExt};
 
+    info!("Turtle id {} is connecting.",id);
+
     let connections = connections.inner().clone();
     let (tx, mut rx) = mpsc::unbounded_channel::<ws::Message>();
     connections.register(id, tx);

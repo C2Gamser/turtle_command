@@ -49,7 +49,7 @@ impl Turtle {
         let string_self = json::to_pretty_string(&self).unwrap();
         let my_path = self.id.to_string()+".json";
 
-        fs::write(path+&my_path, string_self).expect(&format!("Should be able to write to `turtles/{}.json`",self.id));
+        fs::write(path+"/"+&my_path, string_self).expect(&format!("Should be able to write to `turtles/{}.json`",self.id));
     }
 
     // Loads a turtle from the given turtle folder using the id

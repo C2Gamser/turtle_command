@@ -300,33 +300,42 @@ local function ws_save_file(data)
     file.write(file_content)
     file.close()
 
-    print("SF: Wrote to "..file_name)
+    mv.single_color_print("SF: Wrote to "..file_name, colors.gray)
 
     if file_name == "turtle_command.lua" then
-        print("Recieved update to turtle_command, starting new instance.")
-        -- Start a new instance
+        -- The sleep below is CRITICAL for the program to work properly
+        -- Likely due to how thready works, or due to a bug in computercraft itself,
+        -- when verify_lua_files runs and detects that turtle_command.lua needs to be replaced,
+        -- it starts a new copy of it too quickly, so when the old program ends,
+        -- the websocket the new program uses is then shutdown by the old program.
+        -- This order somehow prevents that from happening
+         -- Start a new instance
+        os.sleep(0.05)
         shell.openTab("turtle_command/turtle_command.lua")
         -- Shutdown this instance of turtle_command
         os.queueEvent("terminate")
+
     end
 end
-
--- ts
 
 -- Creates a websocket with the server address in url.txt
 local function establish_websocket()
     local url, api_key = fetch_conneciton_data()
 
+    if url == nil then
+        error("There is no URL in turtle_command/config.settings")
+    end
+    
     -- The sub here gets rid of the "https" so that it can be replaced with "ws"
     -- Note: We also submit the ID so the rust server can track which websocket is which
     local server_address = "ws"..url:sub(5, -1).."/websocket?id="..os.getComputerID()
-    print("Establishing websocket connection to "..server_address)
+    mv.single_color_print("Establishing websocket connection to "..server_address, colors.gray)
     local socket, fail_reason = http.websocket({url = server_address, timeout = 5, headers = {api_key = api_key}})
 
     if not socket then
         print(fail_reason)
     else
-        print("Websocket connected!")
+        mv.single_color_print("Websocket connected!", colors.gray)
     end
 
     return socket
@@ -387,10 +396,14 @@ local function handle_terminate(websocket)
 
     -- Shuts down thready quickly
     thready.running = false
+    thready.websocket = nil
+    websocket = nil
 
     -- Shutdown this multishell tab if it isn't the only one
     if multishell.getCount() > 1 then
         os.queueEvent("terminate")
+    else
+        mv.single_color_print("Terminated", colors.red)
     end
 end
 
@@ -447,7 +460,7 @@ local function persistent_connect(websocket)
             counter = counter + 1
         else
             thready.websocket = websocket
-            print("Took "..counter.." attempts to reconnect.")
+            print("Took "..counter.." attempts to connect.")
             return websocket
         end
     end
