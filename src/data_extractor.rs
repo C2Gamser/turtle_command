@@ -16,8 +16,6 @@ impl MCDataCrawler {
     }
 
     pub fn extract_data(&self) {
-
-
         let _count= Crawler::new()
             .start_dir(&self.start_path)
             .file_regex(r"^.*\.jar$")
@@ -51,10 +49,11 @@ impl MCDataCrawler {
                             }
 
                             std::fs::create_dir_all(final_destination_dir).unwrap();
-                            let mut inner_file = File::create(PathBuf::from(final_destination)).unwrap();
+                            let mut inner_file = File::create(PathBuf::from(&final_destination)).unwrap();
 
                             let _ = zip_crawler.stream_file(&entry.name, |reader| {
-                                io::copy(reader, &mut inner_file).expect("Failed to copy content to stdout");
+                                io::copy(reader, &mut inner_file).expect("Failed to copy content to file");
+                                println!("Extracted to {:?}", final_destination);
                                 Ok(())
                             });
                         }
