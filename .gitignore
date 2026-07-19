@@ -1,4 +1,6 @@
 /target
 /turtles
 /world_data
+/minecraft_data/*
+/extracted_minecraft_data/*
 api_key.txt

@@ -17,6 +17,7 @@ mod chunks;
 mod turtle_data;
 mod coordinates;
 mod astar;
+mod data_extractor;
 use chunks::{Chunk, BlockData, WhitelistMap};
 use coordinates::Coordinate;
 use turtle_data::{Turtle, Slot, Inventory};
@@ -528,9 +529,18 @@ const LUA_FOLDER: &str = "lua";
 const WORLD_FOLDER: &str = "world_data";
 const TURTLES_FOLDER: &str = "turtles";
 const FRONTEND_FOLDER: &str = "frontend";
+const TEMP_THREEJS_FOLDER: &str = "threejs";
+const MINECRAFT_DATA_FOLDER: &str = "minecraft_data";
+const EXTRACTED_DATA_FOLDER: &str = "extracted_minecraft_data";
 
 #[launch]
 fn rocket() -> _ {
+    // Crawls the minecraft_data folder to extract data into the EXTRACTED_DATA_FOLDER
+    // minecraft_data should contain the contents of a .minecraft folder
+    // Extract data doesn't do anything if the files it finds are already in extracted_minecraft_data
+    let extractor = data_extractor::MCDataCrawler::new(MINECRAFT_DATA_FOLDER.into(), EXTRACTED_DATA_FOLDER.into());
+    extractor.extract_data();
+
     // Creates the world data folder if it doesnt exist
     let path = PathBuf::from(WORLD_FOLDER);
     let _ = fs::create_dir(&path);
@@ -550,6 +560,8 @@ fn rocket() -> _ {
     .mount("/".to_owned()+TURTLES_FOLDER, FileServer::from(TURTLES_FOLDER.to_owned()+"/"))
     // This hosts all the files in the frontend folder
     .mount("/".to_owned()+FRONTEND_FOLDER, FileServer::from(FRONTEND_FOLDER.to_owned()+"/"))
+    // This hosts all the files in the threejs folder
+    .mount("/".to_owned()+TEMP_THREEJS_FOLDER, FileServer::from(TEMP_THREEJS_FOLDER.to_owned()+"/"))
 
     .mount("/", routes![
         websocket,
