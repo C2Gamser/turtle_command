@@ -1,5 +1,5 @@
 use log::info;
-use rocket::{Config, tokio};
+use rocket::{Config, data, tokio};
 use rocket::form::Form;
 use rocket::fs::{FileServer, NamedFile};
 use rocket::response::stream::EventStream;
@@ -540,6 +540,8 @@ fn rocket() -> _ {
     // Extract data doesn't do anything if the files it finds are already in extracted_minecraft_data
     let extractor = data_extractor::MCDataCrawler::new(MINECRAFT_DATA_FOLDER.into(), EXTRACTED_DATA_FOLDER.into());
     extractor.extract_data();
+
+    data_extractor::MC3DModel::new((EXTRACTED_DATA_FOLDER).into()).load_obj("minecraft:yellow_concrete_powder".into());
 
     // Creates the world data folder if it doesnt exist
     let path = PathBuf::from(WORLD_FOLDER);

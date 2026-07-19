@@ -5,9 +5,11 @@ edition = "2024"
 
 [dependencies]
 ciborium = "0.2.2"
+eserde = { version = "0.1.7", features = ["json"] }
 file-crawler = "0.1.5"
 log = "0.4.33"
 lz4_flex = "0.13.1"
+minecraft-assets = "0.0.6"
 pathfinding = "4.15.0"
 regex = "1.13.1"
 rocket = { version = "0.5.1", features = ["json"] }

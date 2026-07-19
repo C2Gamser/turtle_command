@@ -717,6 +717,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "eserde"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "126e7cf1ef2f9cfbc4d0767cf97961beb73e62f22d90616d9a1228ab06fd1387"
+dependencies = [
+ "eserde_derive",
+ "itoa",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "eserde_derive"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1a9861273a1a4623e150b093a99b9c0e51a4d1b2b52efe64facf0f15978f08e9"
+dependencies = [
+ "indexmap",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "fancy-regex"
 version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1384,6 +1408,17 @@ name = "mime"
 version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
+
+[[package]]
+name = "minecraft-assets"
+version = "0.0.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f78cc79b9e5cf5e4c0d79fe0eb3b6b7593d77436186c544657c55bb59164a943"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
 
 [[package]]
 name = "miniz_oxide"
@@ -2556,9 +2591,11 @@ name = "turtle_command"
 version = "0.1.0"
 dependencies = [
  "ciborium",
+ "eserde",
  "file-crawler",
  "log",
  "lz4_flex",
+ "minecraft-assets",
  "pathfinding",
  "regex",
  "rocket",
