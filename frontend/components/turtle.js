@@ -1,3 +1,6 @@
+import { Inventory } from "/frontend/components/turtle_inventory.js";
+import { Slot } from "/frontend/components/inventory_slot.js";
+
 class Coordinates {
     constructor(x, y, z) {
         this.x = x;
@@ -7,36 +10,6 @@ class Coordinates {
 
     toString() {
         return `X: ${this.x} Y: ${this.y} Z: ${this.z}`
-    }
-}
-
-class Slot {
-    constructor(name, count) {
-        this.name = name;
-        this.count = count;
-    }
-
-    toString() {
-        if (this.count > 0) {
-            return `${this.name} x${this.count}`
-        } else {
-            return "Empty"
-        }
-    }
-}
-
-class Inventory {
-    constructor(size, slot_list) {
-        this.size = size;
-        this.slots = [];
-        for (let i of slot_list) {
-            if (i == null) {
-                this.slots.push(new Slot("Empty", 0))
-            } else {
-                this.slots.push(new Slot(i.name, i.count))
-            }
-
-        }
     }
 }
 
@@ -78,6 +51,7 @@ class TurtleComponent extends HTMLElement {
             <div class="turtleID"></div>
             <div class="coordinates"></div>
             <div class="fuel"></div>
+            <x-turtle-inventory></x-turtle-inventory>
         `;
 
         this.update();
@@ -109,6 +83,9 @@ class TurtleComponent extends HTMLElement {
 
             let fuel_div = this.querySelector("div.fuel")
             fuel_div.innerText = `Fuel: ${new_turt.fuel.toString()}`
+
+            let turtle_inventory = this.querySelector("x-turtle-inventory")
+            turtle_inventory.contents = new_turt.inventory.slots
 
             this.setAttribute("data-connected", new_turt.connected)
         });
