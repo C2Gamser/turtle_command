@@ -72,6 +72,22 @@ pub enum BlockStateData {
     String(String),
 }
 
+impl ToString for BlockStateData {
+    fn to_string(&self) -> String {
+        match self {
+            BlockStateData::Bool(bool) => {
+                bool.to_string()
+            }
+            BlockStateData::Integer(integer) => {
+                integer.to_string()
+            }
+            BlockStateData::String(string) => {
+                string.clone()
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[derive(Deserialize, Serialize)]
 #[serde(crate = "rocket::serde")]

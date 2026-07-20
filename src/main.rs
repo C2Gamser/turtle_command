@@ -23,6 +23,8 @@ use coordinates::Coordinate;
 use turtle_data::{Turtle, Slot, Inventory};
 use sha_file_hashing::Hashable;
 use astar::pathfind;
+
+use crate::chunks::BlockStateData;
 #[macro_use] extern crate rocket;
 
 
@@ -541,7 +543,12 @@ fn rocket() -> _ {
     let extractor = data_extractor::MCDataCrawler::new(MINECRAFT_DATA_FOLDER.into(), EXTRACTED_DATA_FOLDER.into());
     extractor.extract_data();
 
-    data_extractor::MC3DModel::new((EXTRACTED_DATA_FOLDER).into()).load_obj("minecraft:yellow_concrete_powder".into());
+    let block_extractor = data_extractor::MC3DModelExtractor::new((EXTRACTED_DATA_FOLDER).into());
+
+    let mut test_states: HashMap<String, BlockStateData> = HashMap::new();
+    test_states.insert("lit".into(), BlockStateData::Bool(false));
+
+    block_extractor.parse_blockstates(BlockData { name: "minecraft:yellow_candle_cake".into(), states: test_states});
 
     // Creates the world data folder if it doesnt exist
     let path = PathBuf::from(WORLD_FOLDER);

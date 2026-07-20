@@ -1,24 +1,17 @@
 use file_crawler::prelude::*;
-use rocket::serde::json::Value;
-use ::serde::Deserialize;
 use std::collections::HashMap;
 use std::fs::{self, File};
-use std::iter::Map;
 use std::path::PathBuf;
 use zipcrawl::ZipManager;
 use regex::regex;
-use std::io::{self, Read};
-use rocket::{serde};
-use serde::json::serde_json;
-use minecraft_assets::api::AssetPack;
+use std::io;
 use crate::chunks::BlockData;
+use rocket::{serde};
 
 pub struct MCDataCrawler {
     start_path: PathBuf,
     output_path: PathBuf
 }
-
-
 
 impl MCDataCrawler {
     pub fn new(start_path: PathBuf, output_path: PathBuf) -> Self {
@@ -84,48 +77,105 @@ impl MCDataCrawler {
 #[derive(Debug, serde::Deserialize)]
 enum VariantEnum {
     #[serde(rename = "")]
-    one(Vec<Model>),
+    ModelList(Vec<ModelData>),
     #[serde(untagged)]
-    two(HashMap<String, Model>),
+    VariantList(HashMap<String, ModelData>),
+}
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct ModelData {
+    pub model: String,
+    pub x: Option<i32>,
+    pub y: Option<i32>,
+    pub z: Option<i32>,
+    pub uvlock: Option<bool>,
+    pub weight: Option<i32>,
 }
 
 #[derive(Debug, serde::Deserialize)]
-struct Model {
-    model: String,
-    x: Option<i32>,
-    y: Option<i32>,
-    z: Option<i32>,
-    uvlock: Option<bool>,
-    weight: Option<i32>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct BlockStates {
+struct VariantStates {
     variants: VariantEnum
 }
 
-pub struct MC3DModel {
+#[derive(Debug, serde::Deserialize)]
+enum WhenEnum {
+    OR(Vec<HashMap<String, String>>),
+    #[serde(untagged)]
+    None(HashMap<String, String>)
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct Case {
+    apply: ModelData,
+    when: Option<WhenEnum>
+}
+
+#[derive(Debug, serde::Deserialize)]
+enum VariantOrMultipart {
+    #[serde(rename = "multipart")]
+    Multipart(Vec<Case>),
+    #[serde(rename = "variants")]
+    Variants(VariantEnum)
+}
+
+pub struct MC3DModelExtractor {
     extracted_data_path: PathBuf,
 }
 
-impl MC3DModel {
+impl MC3DModelExtractor {
     pub fn new(extracted_data_path: PathBuf) -> Self {
-        MC3DModel { extracted_data_path }
+        MC3DModelExtractor { extracted_data_path }
     }
 
-    pub fn load_obj(&self, block_name: String) {
-        let namespace = regex!(r"^[^:]+").find(&block_name).unwrap().as_str();
-        let name = &regex!(r"^[^:]+:(.+)$").captures(&block_name).unwrap()[1];
+    pub fn parse_blockstates(&self, block_data: BlockData) -> Result<ModelData, String> {
+        let namespace_name = &block_data.name.split_once(':').unwrap();
+        let namespace = namespace_name.0;
+        let name = namespace_name.1;
 
-        println!("{}",self.extracted_data_path.to_str().unwrap().to_owned()+"/"+namespace+"/blockstates/"+name+".json");
+        // println!("{}",self.extracted_data_path.to_str().unwrap().to_owned()+"/"+namespace+"/blockstates/"+name+".json");
 
         let blockstates_data = fs::read_to_string(self.extracted_data_path.to_str().unwrap().to_owned()+"/"+namespace+"/blockstates/"+name+".json").unwrap();
 
+        let blockstates_deserialized  = serde::json::from_str::<VariantOrMultipart>(&blockstates_data).unwrap();
 
-        let blockstates_deserialized  = serde::json::from_str::<Value>(&blockstates_data).unwrap();
+        match &blockstates_deserialized {
+            // TODO: Finish multipart
+            // e.g. acacia_fence
+            VariantOrMultipart::Multipart(multipart) => {
+                return Err("Multipart models are not yet implemented.".into())
+            }
 
+            VariantOrMultipart::Variants(variants) => {
+                match variants {
+                    // e.g. yellow_concrete_powder
+                    // We simplify this greatly by just returning the first model in the list
+                    VariantEnum::ModelList(model_list) => {
+                        return Ok(model_list[0].clone())
+                    }
+                    // e.g. yellow_cake
+                    VariantEnum::VariantList(variant_list) => {
+                        // We are trying to get the block states list to look like "candles=1,lit=false"
+                        let mut block_states_combined = "".to_string();
+                        let block_state_len = block_data.states.len();
 
-        dbg!(blockstates_deserialized);
+                        for block_state in block_data.states.into_iter().enumerate() {
+                            let pos = block_state.0;
+                            let block_state = block_state.1;
+                            block_states_combined.push_str(&block_state.0);
+                            block_states_combined.push_str("=");
+                            block_states_combined.push_str(&block_state.1.to_string());
+                            // If we are at the last element don't add a comma
+                            if pos != block_state_len - 1 {
+                                block_states_combined.push_str(",");
+                            }
+                        }
+                        return Ok(variant_list[&block_states_combined].clone())
+                    }
+                }
+            }
+        }
     }
+
+
 }
 
