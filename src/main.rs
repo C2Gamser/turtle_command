@@ -457,6 +457,24 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
     }))
 }
 
+// Checks each turtle's file and sets it to disconnected
+fn prune_turtles() {
+    let registered_turtles = fs::read_dir(TURTLES_FOLDER).unwrap();
+
+    let turtle_list = registered_turtles
+        .filter_map(|f| f.ok())
+        .filter_map(|f|Some(f.file_name()))
+        .filter_map(|f|Path::new(&f)
+        .file_stem()
+        .map(|f|f.to_string_lossy().to_string().to_owned()));
+
+    for turtle in turtle_list {
+        let mut new_turtle = Turtle::load(TURTLES_FOLDER.into(), turtle.parse().unwrap()).unwrap();
+        new_turtle.connected = false;
+        new_turtle.save(TURTLES_FOLDER.into());
+    }
+}
+
 // Handles the front page
 #[get("/")]
 async fn index() -> Result<NamedFile, std::io::Error> {
@@ -565,15 +583,23 @@ const WORLD_FOLDER: &str = "world_data";
 const TURTLES_FOLDER: &str = "turtles";
 const FRONTEND_FOLDER: &str = "frontend";
 const TEMP_THREEJS_FOLDER: &str = "threejs";
+const EXTRACTED_DATA_FOLDER: &str = "extracted_minecraft_data";
+const MINECRAFT_DATA_FOLDER: &str = "minecraft_data";
 
 #[launch]
 fn rocket() -> _ {
+    let data_extractor = data_extractor::MCDataCrawler::new(MINECRAFT_DATA_FOLDER.into(), EXTRACTED_DATA_FOLDER.into());
+    data_extractor.extract_texture_data();
+
     // Creates the world data folder if it doesnt exist
     let path = PathBuf::from(WORLD_FOLDER);
     let _ = fs::create_dir(&path);
 
     let whitelist = WhitelistMap::load_or_new(&path.join("whitelist"));
     whitelist.save().unwrap();
+
+    // Sets all registered turtles to be marked as disconnected
+    prune_turtles();
 
     // Creates a new API key if there isn't one
     ApiKey::load_or_new();
@@ -589,6 +615,8 @@ fn rocket() -> _ {
     .mount("/".to_owned()+FRONTEND_FOLDER, FileServer::from(FRONTEND_FOLDER.to_owned()+"/"))
     // This hosts all the files in the threejs folder
     .mount("/".to_owned()+TEMP_THREEJS_FOLDER, FileServer::from(TEMP_THREEJS_FOLDER.to_owned()+"/"))
+    // This hosts all the texture data for easy frontend access
+    .mount("/".to_owned()+EXTRACTED_DATA_FOLDER, FileServer::from(EXTRACTED_DATA_FOLDER.to_owned()+"/"))
 
     .mount("/", routes![
         websocket,
