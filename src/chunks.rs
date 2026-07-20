@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::{HashMap, HashSet}, fs::{self, File}, path::{Path, PathBuf}};
+use std::{collections::{HashMap, HashSet}, fs, path::{Path, PathBuf}};
 use rocket::{serde::json};
 use crate::coordinates::Coordinate;
 

@@ -537,19 +537,6 @@ const EXTRACTED_DATA_FOLDER: &str = "extracted_minecraft_data";
 
 #[launch]
 fn rocket() -> _ {
-    // Crawls the minecraft_data folder to extract data into the EXTRACTED_DATA_FOLDER
-    // minecraft_data should contain the contents of a .minecraft folder
-    // Extract data doesn't do anything if the files it finds are already in extracted_minecraft_data
-    let extractor = data_extractor::MCDataCrawler::new(MINECRAFT_DATA_FOLDER.into(), EXTRACTED_DATA_FOLDER.into());
-    extractor.extract_data();
-
-    let block_extractor = data_extractor::MC3DModelExtractor::new((EXTRACTED_DATA_FOLDER).into());
-
-    let mut test_states: HashMap<String, BlockStateData> = HashMap::new();
-    test_states.insert("lit".into(), BlockStateData::Bool(false));
-
-    block_extractor.parse_blockstates(BlockData { name: "minecraft:yellow_candle_cake".into(), states: test_states});
-
     // Creates the world data folder if it doesnt exist
     let path = PathBuf::from(WORLD_FOLDER);
     let _ = fs::create_dir(&path);
