@@ -33,20 +33,21 @@ class TurtleInventoryComponent extends HTMLElement {
         this.update();
     }
 
+    // TODO: Implement inventory
     update() {
-        for (const [i, v] of this.childNodes.entries()) {
-            if (this.#inv[i]) {
-                v.name = this.#inv[i].name
-                v.count = this.#inv[i].count
+        // for (const [i, v] of this.childNodes.entries()) {
+        //     if (this.#inv[i]) {
+        //         v.name = this.#inv[i].name
+        //         v.count = this.#inv[i].count
 
-                if (this.#inv[i].name !="Empty") {
-                    let name_and_space = this.#inv[i].name.split(":")
-                    let space = name_and_space[0]
-                    let name = name_and_space[1]
-                    v.image = "/extracted_minecraft_data/"+space+"/"+name+".png"
-                }
-            }
-        }
+        //         if (this.#inv[i].name !="Empty") {
+        //             let name_and_space = this.#inv[i].name.split(":")
+        //             let space = name_and_space[0]
+        //             let name = name_and_space[1]
+        //             v.image = "/extracted_minecraft_data/"+space+"/"+name+".png"
+        //         }
+        //     }
+        // }
     }
 }
 

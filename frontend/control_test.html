@@ -1,13 +1,11 @@
 <head>
-  <script src="/frontend/scripts/main.js"></script>
   <link rel="stylesheet" href="/frontend/style/index.css">
-  <link rel="preload" type="image" href="/frontend/resources/images/buttons/turned_on_hover.png">
 </head>
 <body id="mainBody">
 
 <div style="font-size:1.5em;" >Control Test</div>
 
-<form target="_blank" id="turtleForm" action="/web_command" method="post">
+<form id="turtleForm" action="/web_command" method="post">
   <label>Turtle:</label><br>
   <select id="turtleSelector" name="id"></select><br>
   <label>Kind:</label><br>
@@ -16,6 +14,22 @@
   <input type="text" name="data" value=""><br><br>
   <button id="submitCommandButton" type="submit">Submit</button>
 </form>
+
+  <script type="module">
+    let selector = document.getElementById("turtleSelector")
+      fetch("/all_ids")
+        .then((response) => response.json())
+        .then((data) => {
+        for (let id of data) {
+          const new_opt = document.createElement("option");
+          new_opt.value = id;
+          new_opt.text = id;
+          selector.add(new_opt)
+          console.log(selector)
+        }
+      }
+    );
+  </script>
 
 </body>
 </html>

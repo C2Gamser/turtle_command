@@ -1412,8 +1412,7 @@ checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 [[package]]
 name = "minecraft-assets"
 version = "0.0.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f78cc79b9e5cf5e4c0d79fe0eb3b6b7593d77436186c544657c55bb59164a943"
+source = "git+https://github.com/BGR360/minecraft-assets-rs#fd9fc7d777da5a76c6d1fc8de77c37556d6ec35d"
 dependencies = [
  "serde",
  "serde_json",

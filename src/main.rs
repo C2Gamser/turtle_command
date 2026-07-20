@@ -1,4 +1,7 @@
 use log::info;
+use minecraft_assets::api::AssetPack;
+use minecraft_assets::api::ResourceKind::BlockStates;
+use minecraft_assets::schemas::BlockStates::Multipart;
 use rocket::{Config, data, tokio};
 use rocket::form::Form;
 use rocket::fs::{FileServer, NamedFile};
@@ -266,8 +269,8 @@ fn ws_register(reg_data: &String, connections: &Arc<TurtleConnections>, turtle_i
 }
 
 // Recieves blocks from the turtles to be stored in chunk files
-fn ws_receive_blocks(reg_data: &String) {
-    let blocks: Vec<(BlockData, Coordinate)> = json::from_str(&reg_data).unwrap();
+fn ws_receive_blocks(data: &String) {
+    let blocks: Vec<(BlockData, Coordinate)> = json::from_str(&data).unwrap();
 
     for block in blocks.iter() {
         let world_coords = Coordinate::new(block.1.x, block.1.y, block.1.z);
@@ -589,7 +592,11 @@ const MINECRAFT_DATA_FOLDER: &str = "minecraft_data";
 #[launch]
 fn rocket() -> _ {
     let data_extractor = data_extractor::MCDataCrawler::new(MINECRAFT_DATA_FOLDER.into(), EXTRACTED_DATA_FOLDER.into());
-    data_extractor.extract_texture_data();
+    data_extractor.extract_data();
+
+    let assets = AssetPack::at_path("extracted_minecraft_data/");
+
+    
 
     // Creates the world data folder if it doesnt exist
     let path = PathBuf::from(WORLD_FOLDER);
