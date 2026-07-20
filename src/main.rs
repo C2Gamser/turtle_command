@@ -527,13 +527,44 @@ fn all_ids() -> json::Json<Vec<String>> {
     json::Json(turtle_list)
 }
 
+// We send back json containing chunk data
+#[get("/get_chunk/<x>/<y>/<z>")]
+fn get_chunk(x: i32, y: i32, z: i32) -> Option<json::Json<Chunk>> {
+    let chunk = Chunk::load(&WORLD_FOLDER, &coordinates::Coordinate::new(x, y, z));
+
+    chunk.map(|chunk|json::Json(chunk))
+}
+
+#[get("/get_available_chunks")]
+fn get_available_chunks() -> json::Json<Vec<Coordinate>> {
+    let available_chunks = fs::read_dir(&WORLD_FOLDER).unwrap();
+
+    let chunk_list: Vec<String> = available_chunks
+        .filter_map(|f| f.ok())
+        .filter_map(|f|Some(f.file_name()))
+        .filter_map(|f|Path::new(&f)
+        .file_stem()
+        .map(|f|f.to_string_lossy().to_string().to_owned()))
+        .collect();
+
+    let chunk_list: Vec<Coordinate> = chunk_list.iter().filter_map(|f| {
+        match f.as_str() {
+            "whitelist" => None,
+            _ => {
+                let coords: Vec<i32> = f.split("_").map(|f|f.parse().unwrap()).collect();
+                Some(Coordinate::new(coords[0], coords[1], coords[2]))
+            }
+        }
+    }).collect();
+
+    json::Json(chunk_list)
+}
+
 const LUA_FOLDER: &str = "lua";
 const WORLD_FOLDER: &str = "world_data";
 const TURTLES_FOLDER: &str = "turtles";
 const FRONTEND_FOLDER: &str = "frontend";
 const TEMP_THREEJS_FOLDER: &str = "threejs";
-const MINECRAFT_DATA_FOLDER: &str = "minecraft_data";
-const EXTRACTED_DATA_FOLDER: &str = "extracted_minecraft_data";
 
 #[launch]
 fn rocket() -> _ {
@@ -568,6 +599,8 @@ fn rocket() -> _ {
         serve_favicon,
         component_test,
         all_ids,
+        get_chunk,
+        get_available_chunks
         ])
 }
 
