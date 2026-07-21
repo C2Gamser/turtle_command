@@ -593,10 +593,13 @@ const MINECRAFT_DATA_FOLDER: &str = "minecraft_data";
 fn rocket() -> _ {
     let data_extractor = data_extractor::MCDataCrawler::new(MINECRAFT_DATA_FOLDER.into(), EXTRACTED_DATA_FOLDER.into());
     data_extractor.extract_data();
-
-    let assets = AssetPack::at_path("extracted_minecraft_data/");
-
-    
+    let model_loader = data_extractor::ModelLoader::new((EXTRACTED_DATA_FOLDER.to_owned()+"/").into());
+    let tst_data = Chunk::load(&WORLD_FOLDER, &Coordinate { x: -8, y: 4, z: 7}).unwrap();
+    let tst_block_data = &tst_data.block_data[4][5][9];
+    let model_properties = model_loader.get_model_props(tst_block_data);
+    dbg!(&model_properties);
+    let test_model = model_loader.get_model_render(model_properties.unwrap());
+    dbg!(test_model);
 
     // Creates the world data folder if it doesnt exist
     let path = PathBuf::from(WORLD_FOLDER);
