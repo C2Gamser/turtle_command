@@ -14,6 +14,7 @@ pathfinding = "4.15.0"
 regex = "1.13.1"
 rocket = { version = "0.5.1", features = ["json"] }
 rocket_ws = "0.1.1"
+schematic-mesher = "0.2.0"
 serde = { version = "1.0.228", features = ["derive"] }
 sha_file_hashing = "0.1.1"
 uuid = { version = "1.23.4", features = ["v4"] }

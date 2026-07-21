@@ -1,34 +1,30 @@
 use log::info;
-use minecraft_assets::api::AssetPack;
-use minecraft_assets::api::ResourceKind::BlockStates;
-use minecraft_assets::schemas::BlockStates::Multipart;
-use rocket::{Config, data, tokio};
 use rocket::form::Form;
 use rocket::fs::{FileServer, NamedFile};
-use rocket::response::stream::EventStream;
 use serde::{Deserialize, Serialize};
-use std::thread::ThreadId;
 use std::{collections::HashMap, path::PathBuf, path::Path, vec, fs};
 use std::sync::{Arc, Mutex};
 use uuid::{Uuid};
 use rocket::{http::Status, serde::json, State};
 use rocket::request::{FromRequest, Request, Outcome};
 use rocket::tokio::sync::mpsc;
-use rocket::tokio::time::{Duration, interval, timeout};
 use rocket_ws as ws;
+use schematic_mesher::{
+    BlockPosition, BoundingBox, InputBlock, Mesher, MesherConfig, export_glb, load_resource_pack,
+};
+use chunks::{Chunk, BlockData, WhitelistMap};
+use coordinates::Coordinate;
+use turtle_data::{Turtle};
+#[macro_use] extern crate rocket;
+use sha_file_hashing::Hashable;
+use astar::pathfind;
+
+use crate::data_extractor::MeshGenerator;
 mod chunks;
 mod turtle_data;
 mod coordinates;
 mod astar;
 mod data_extractor;
-use chunks::{Chunk, BlockData, WhitelistMap};
-use coordinates::Coordinate;
-use turtle_data::{Turtle, Slot, Inventory};
-use sha_file_hashing::Hashable;
-use astar::pathfind;
-
-use crate::chunks::BlockStateData;
-#[macro_use] extern crate rocket;
 
 
 #[derive(Debug)]
@@ -88,10 +84,6 @@ struct TurtleReadable {
 impl TurtleReadable {
     fn new(instruction: &str, data: &str) -> Self {
         TurtleReadable { instruction: instruction.to_string(), data: data.to_string() }
-    }
-
-    fn serialize(self) -> json::Json<TurtleReadable> {
-        json::Json(self)
     }
 
     fn to_ws_message(self) -> ws::Message {
@@ -591,15 +583,14 @@ const MINECRAFT_DATA_FOLDER: &str = "minecraft_data";
 
 #[launch]
 fn rocket() -> _ {
+    // Extracts a resource pack from a minecraft folder
     let data_extractor = data_extractor::MCDataCrawler::new(MINECRAFT_DATA_FOLDER.into(), EXTRACTED_DATA_FOLDER.into());
     data_extractor.extract_data();
-    let model_loader = data_extractor::ModelLoader::new((EXTRACTED_DATA_FOLDER.to_owned()+"/").into());
-    let tst_data = Chunk::load(&WORLD_FOLDER, &Coordinate { x: -8, y: 4, z: 7}).unwrap();
-    let tst_block_data = &tst_data.block_data[4][5][9];
-    let model_properties = model_loader.get_model_props(tst_block_data);
-    dbg!(&model_properties);
-    let test_model = model_loader.get_model_render(model_properties.unwrap());
-    dbg!(test_model);
+
+    let test_mesher = MeshGenerator::new(EXTRACTED_DATA_FOLDER.into());
+    let glb_bytes = test_mesher.mesh_all_chunks(WORLD_FOLDER.into());
+
+    std::fs::write("output.glb", glb_bytes).unwrap();
 
     // Creates the world data folder if it doesnt exist
     let path = PathBuf::from(WORLD_FOLDER);
