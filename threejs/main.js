@@ -5,6 +5,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 
+scene.background = new THREE.Color().setHex( 0x67b7e6 )
+
 let width = window.innerWidth
 let height = window.innerHeight
 
@@ -16,7 +18,7 @@ renderer.setSize( width, height );
 renderer.setAnimationLoop( animate );
 document.body.appendChild( renderer.domElement );
 
-const light = new THREE.AmbientLight( 0xffffff, 10 ); // white light
+const light = new THREE.AmbientLight( 0xffffff, 15 ); // white light
 scene.add( light );
 
 let rayCaster = new THREE.Raycaster();

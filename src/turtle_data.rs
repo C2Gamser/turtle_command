@@ -54,7 +54,6 @@ impl Turtle {
 
     // Loads a turtle from the given turtle folder using the id
     pub fn load(path: String, id: u16) -> Option<Self> {
-
         let turtle_path = path+"/"+&id.to_string()+".json";
 
         let data = fs::read_to_string(&turtle_path);

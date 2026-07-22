@@ -35,11 +35,11 @@ impl MeshGenerator {
             atlas_max_size: 4096,         // Max texture atlas dimension
             atlas_padding: 1,             // Padding between atlas textures
             include_air: false,           // Skip air blocks
-            ambient_occlusion: false,      // Enable AO
+            ambient_occlusion: true,      // Enable AO
             ao_intensity: 1.0,            // AO darkness (0.0-1.0)
-            enable_block_light: true,
+            enable_block_light: false,
             enable_particles: false,
-            enable_sky_light: true,
+            enable_sky_light: false,
             sky_light_level: 5,
             pre_built_atlas: None,
             tint_provider: TintProvider::for_biome("plains"),
