@@ -1,6 +1,7 @@
 use log::info;
-use rocket::form::Form;
+use rocket::form::{Error, Form};
 use rocket::fs::{FileServer, NamedFile};
+use schematic_mesher::mesher::entity;
 use serde::{Deserialize, Serialize};
 use std::fs::{Metadata, metadata};
 use std::time::SystemTime;
@@ -90,8 +91,40 @@ impl TurtleReadable {
     }
 }
 
+// For persistent, multi request goals such as pathfinding or mining
+enum TurtleDirective {
+    // Turtle is available for dispatch/directive
+    Available(),
+    // Send turtle to a world coordinate
+    GoTo(Coordinate)
+}
+
 struct TurtleManager {
-    turtles: Vec<Turtle>
+    turtles: HashMap<u16, TurtleDirective>
+}
+
+impl TurtleManager {
+    fn new() -> Self {
+        TurtleManager { turtles: HashMap::new() }
+    }
+
+    fn add_turtle(&mut self, turtle_id: u16) {
+        self.turtles.insert(turtle_id, TurtleDirective::Available());
+    }
+
+    // Sets the turtle's directive to go to a goal coordinate
+    // Returns true or false depending on if it succeeded in setting the directive
+    fn set_position_goal(&mut self, turtle_id: u16, goal: Coordinate) -> bool {
+        let entry = self.turtles.get_mut(&turtle_id);
+
+        let Some(entry) = entry else {
+            return false;
+        };
+
+        *entry = TurtleDirective::GoTo(goal);
+
+        true
+    }
 }
 
 // NOTE: This function is partially created with AI :(
@@ -426,7 +459,6 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
                         "register" => ws_register(&message.data, &connections, id),
                         "sendBlocks" => ws_receive_blocks(&message.data, &shared_mesher),
                         "verifyFile" => ws_verify_file(&message.data, &connections, id),
-                        "ping" => {},
 
                         // Unexpected result, we just ignore it
                         _ => {

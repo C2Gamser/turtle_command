@@ -109,121 +109,6 @@ local function fetch_own_status()
     return my_data
 end
 
--- Utility function to change a direction as a letter to a coordinate number. E.g. turns "n" into a Z offset of -1
--- Returns offset_x, offset_z
-local function facing_offset()
-    local facing = mv.read_first_line("turtle_command/facing.txt")
-    local offset_x = 0
-    local offset_z = 0
-    if facing == "n" then
-        offset_z = -1
-    elseif facing == "s" then
-        offset_z = 1
-    else
-        offset_z = 0
-    end
-    if facing == "e" then
-        offset_x = 1
-    elseif facing == "w" then
-        offset_x = -1
-    else
-        offset_x = 0
-    end
-    return offset_x, offset_z
-end
-
--- Adds a block to the block cache
-local function append_block_cache(block_cache)
-    local f = fs.open("turtle_command/block_cache.txt", "r")
-    local block_cash_old = textutils.unserialise(f.readAll())
-    f.close()
-
-    -- If there werent any blocks in the old cache, block_cash_old = nil, causing an error, thus this is here.
-    if not block_cash_old then
-        block_cash_old = {}
-    end
-
-    -- This is the structure of an item in block cache: {name = data.name, x = x, y = y, z = z}
-    -- data.name is the name of a block
-    for i, v in pairs(block_cache) do
-        -- Only append non-turtle blocks as other turtles should be tracked by the server already
-        if v.name ~= "computercraft:turtle_advanced" or v.name ~= "computercraft:turtle_normal" then
-            block_cash_old[#block_cash_old+1] = v
-        end
-    end
-
-    f = fs.open("turtle_command/block_cache.txt", "w")
-    f.write(textutils.serialise(block_cash_old))
-    f.close()
-end
-
--- Uses turtle.inspect to inspect all 6 blocks around it, appending them to the block cache.
-local function append_inspect_all()
-    local x, y, z = gps.locate()
-
-    local offset_x, offset_z = facing_offset()
-
-    local block_cache = {}
-    local has_block, data = turtle.inspectUp()
-    if has_block then block_cache[#block_cache+1] = {{name = data.name, states = data.state}, {x = x, y = y+1, z = z}}
-    else block_cache[#block_cache+1] = {{name = "minecraft:air", states = {}}, {x = x, y = y+1, z = z}} end
-
-    local has_block, data = turtle.inspectDown()
-    if has_block then block_cache[#block_cache+1] = {{name = data.name, states = data.state}, {x = x, y = y-1, z = z}}
-    else block_cache[#block_cache+1] = {{name = "minecraft:air", states = {}}, {x = x, y = y-1, z = z}} end
-
-    local has_block, data = turtle.inspect()
-    if has_block then block_cache[#block_cache+1] = {{name = data.name, states = data.state}, {x = x + offset_x, y = y, z = z + offset_z}}
-    else block_cache[#block_cache+1] = {{name = "minecraft:air", states = {}}, {x = x + offset_x, y = y, z = z + offset_z}} end
-
-    mv.left()
-
-    local offset_x, offset_z = facing_offset()
-
-    local has_block, data = turtle.inspect()
-    if has_block then block_cache[#block_cache+1] = {{name = data.name, states = data.state}, {x = x + offset_x, y = y, z = z + offset_z}}
-    else block_cache[#block_cache+1] = {{name = "minecraft:air", states = {}}, {x = x + offset_x, y = y, z = z + offset_z}} end
-
-    mv.left()
-
-    local offset_x, offset_z = facing_offset()
-
-    local has_block, data = turtle.inspect()
-    if has_block then block_cache[#block_cache+1] = {{name = data.name, states = data.state}, {x = x + offset_x, y = y, z = z + offset_z}}
-    else block_cache[#block_cache+1] = {{name = "minecraft:air", states = {}}, {x = x + offset_x, y = y, z = z + offset_z}} end
-
-    mv.left()
-
-    local offset_x, offset_z = facing_offset()
-
-    local has_block, data = turtle.inspect()
-    if has_block then block_cache[#block_cache+1] = {{name = data.name, states = data.state}, {x = x + offset_x, y = y, z = z + offset_z}}
-    else block_cache[#block_cache+1] = {{name = "minecraft:air", states = {}}, {x = x + offset_x, y = y, z = z + offset_z}} end
-
-    mv.left()
-
-    append_block_cache(block_cache)
-end
-
--- Utility function, used such that each time the turtle moves it will cache the blocks directly above and below it.
--- Better than running append_inspect_all() each time as that slows the turtle down massively.
-local function cache_updown_move()
-    local x, y, z = gps.locate()
-
-    local block_cache = {}
-    local has_block, data = turtle.inspectUp()
-    if has_block then block_cache[#block_cache+1] = {{name = data.name, states = data.state}, {x = x, y = y+1, z = z}}
-    else block_cache[#block_cache+1] = {{name = "minecraft:air", states = {}}, {x = x, y = y+1, z = z}} end
-
-    local has_block, data = turtle.inspectDown()
-    if has_block then block_cache[#block_cache+1] = {{name = data.name, states = data.state}, {x = x, y = y-1, z = z}}
-    else block_cache[#block_cache+1] = {{name = "minecraft:air", states = {}}, {x = x, y = y-1, z = z}} end
-
-    append_block_cache(block_cache)
-
-    return true
-end
-
 -- Formats a message like {instruction = instruction, data = data} and then json serializes it
 local function format_message(instruction, data)
     local message = {instruction = instruction, data = data}
@@ -295,12 +180,6 @@ local function ws_register(websocket)
     end
 
     local message = format_message("register", textutils.serialiseJSON(send_data))
-    websocket.send(message)
-end
-
--- Sends a websocket message to acknowledge a received message
-local function ws_acknowledge(websocket)
-    local message = format_message("acknowledge", textutils.serialiseJSON(textutils.json_null))
     websocket.send(message)
 end
 
@@ -442,7 +321,7 @@ local function handle_websocket_message(websocket, event_name, url, message, is_
     elseif  kind == "status" and data == "successful" then
         -- Do nothing
     elseif kind == "testBlockSend" then -- DEBUG
-        append_inspect_all()
+        mv.append_inspect_all()
         send_block_cache(websocket)
     else
         if not data then
