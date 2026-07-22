@@ -90,6 +90,10 @@ impl TurtleReadable {
     }
 }
 
+struct TurtleManager {
+    turtles: Vec<Turtle>
+}
+
 // NOTE: This function is partially created with AI :(
 // Registry that maps a turtle's id to a sender half of an mpsc channel.
 // Any route (e.g. web_command) can grab this shared, managed state and push

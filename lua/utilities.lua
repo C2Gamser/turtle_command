@@ -94,6 +94,17 @@ local function single_color_print(string, color)
     try_set_color(colors.white)
 end
 
+-- Determines wether or not the input string is in the input table
+local function is_in(string, table)
+    for i, v in pairs(table) do
+        if v == string then
+            return true
+        end
+    end
+    return false
+end
+
+
 return {
     left = turnLeft,
     right = turnRight,
@@ -103,4 +114,5 @@ return {
     scan_own_inventory = scan_own_inventory,
     try_set_color = try_set_color,
     single_color_print = single_color_print,
+    is_in = is_in,
 }

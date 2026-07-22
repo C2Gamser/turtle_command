@@ -96,7 +96,15 @@ local function fetch_own_status()
     if textutils.serialiseJSON(inventory) == "{}" then
         inventory = nil
     end
-    local my_data = {id = computer_id, connected = true, equipped_left = equipped_left, equipped_right = equipped_right, coordinates = {x = x, y = y, z = z}, inventory_contents = inventory, inventory_size = 16, fuel = fuel}
+    local my_data = {
+        id = computer_id,
+        connected = true,
+        equipped_left = equipped_left,
+        equipped_right = equipped_right,
+        coordinates = {x = x, y = y, z = z},
+        inventory_contents = inventory,
+        inventory_size = 16,
+        fuel = fuel, }
 
     return my_data
 end
@@ -138,7 +146,10 @@ local function append_block_cache(block_cache)
     -- This is the structure of an item in block cache: {name = data.name, x = x, y = y, z = z}
     -- data.name is the name of a block
     for i, v in pairs(block_cache) do
-        block_cash_old[#block_cash_old+1] = v
+        -- Only append non-turtle blocks as other turtles should be tracked by the server already
+        if v.name ~= "computercraft:turtle_advanced" or v.name ~= "computercraft:turtle_normal" then
+            block_cash_old[#block_cash_old+1] = v
+        end
     end
 
     f = fs.open("turtle_command/block_cache.txt", "w")
@@ -463,6 +474,7 @@ local function persistent_connect(websocket)
         else
             thready.websocket = websocket
             print("Took "..counter.." attempts to connect.")
+            ws_register(websocket)
             return websocket
         end
     end
@@ -489,7 +501,6 @@ end
 
 thready.websocket = websocket
 
-ws_register(websocket)
 -- Runs verify_file_with_server on every lua file in turtle_command/
 -- IMPORTANT: If the turtle sends an updated version of turtle_command.lua,
 -- the program will start a NEW copy of itself with the new file and close the old process
