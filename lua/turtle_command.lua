@@ -89,6 +89,7 @@ local function fetch_own_status()
     local equipped_left = turtle.getEquippedLeft()
     local equipped_right = turtle.getEquippedRight()
     local inventory = mv.scan_own_inventory()
+    local facing = mv.read_first_line("turtle_command/facing.txt")
 
     local fuel = turtle.getFuelLevel()
 
@@ -104,7 +105,9 @@ local function fetch_own_status()
         coordinates = {x = x, y = y, z = z},
         inventory_contents = inventory,
         inventory_size = 16,
-        fuel = fuel, }
+        fuel = fuel,
+        facing = facing,
+    }
 
     return my_data
 end
@@ -272,11 +275,17 @@ local function handle_path(websocket, data)
             local success, reason = handle_move(action)
             print(reason)
             if reason == "Movement obstructed" then
-                websocket.send(format_message("movementObstructed", ""))
+                -- We register here to update the turtle's coordinates/facing direction
+                ws_register(websocket)
+                websocket.send(format_message("error", "movementObstructed"))
+            elseif reason == "Out of fuel" then
+                -- We register here to update the turtle's coordinates/facing direction
+                ws_register(websocket)
+                websocket.send(format_message("error", "outOfFuel"))
             end
 
             if not success then
-                error(reason)
+                return false
             end
         end
     end
@@ -374,6 +383,7 @@ mv.single_color_print("Starting turtle command!", colors.green)
 setup_files()
 
 local websocket = establish_websocket()
+ws_register(websocket)
 if not websocket then
     websocket = persistent_connect(websocket)
 end

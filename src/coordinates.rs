@@ -1,3 +1,5 @@
+use std::fmt::{self, Display};
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize, Clone, Copy)]
@@ -19,5 +21,11 @@ impl Coordinate {
 
     pub fn world_to_chunk_coords(&self) -> Self {
         Coordinate::new(self.x >> 4, self.y >> 4, self.z >> 4)
+    }
+}
+
+impl fmt::Display for Coordinate {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({}, {}, {})", self.x, self.y, self.z)
     }
 }

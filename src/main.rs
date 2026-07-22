@@ -92,6 +92,7 @@ impl TurtleReadable {
 }
 
 // For persistent, multi request goals such as pathfinding or mining
+#[derive(Clone)]
 enum TurtleDirective {
     // Turtle is available for dispatch/directive
     Available(),
@@ -100,22 +101,27 @@ enum TurtleDirective {
 }
 
 struct TurtleManager {
-    turtles: HashMap<u16, TurtleDirective>
+    turtles: Mutex<HashMap<u16, TurtleDirective>>
 }
 
 impl TurtleManager {
     fn new() -> Self {
-        TurtleManager { turtles: HashMap::new() }
+        TurtleManager { turtles: Mutex::new(HashMap::new()) }
     }
 
     fn add_turtle(&mut self, turtle_id: u16) {
-        self.turtles.insert(turtle_id, TurtleDirective::Available());
+        self.turtles.lock().unwrap().insert(turtle_id, TurtleDirective::Available());
+    }
+
+    fn get_directive(&self, turtle_id: u16) -> Option<TurtleDirective> {
+        return self.turtles.lock().unwrap().get(&turtle_id).cloned();
     }
 
     // Sets the turtle's directive to go to a goal coordinate
     // Returns true or false depending on if it succeeded in setting the directive
     fn set_position_goal(&mut self, turtle_id: u16, goal: Coordinate) -> bool {
-        let entry = self.turtles.get_mut(&turtle_id);
+        let mut binding = self.turtles.lock().unwrap();
+        let entry = binding.get_mut(&turtle_id);
 
         let Some(entry) = entry else {
             return false;
@@ -334,6 +340,8 @@ fn ws_send_lua_file(file_name: &String, connections: &Arc<TurtleConnections>, tu
         return false;
     };
 
+    info!("Sending {} to turtle {}", file_name, turtle_id);
+
     let mut send_data = HashMap::new();
 
     send_data.insert("file_name", file_name);
@@ -387,6 +395,39 @@ fn ws_verify_file(data: &String, connections: &Arc<TurtleConnections>, turtle_id
     }
 }
 
+fn ws_handle_error(error_string: &String, connections: &Arc<TurtleConnections>, turtle_manager: &Arc<TurtleManager>, turtle_id: u16) {
+    let directive = turtle_manager.get_directive(turtle_id);
+
+    // Generic errors that should be dealt with even when no directive is present go here
+    if error_string == "outOfFuel" {
+        // TODO: Implement turtles refueling other turtles if they run out
+        warn!("Turtle {} gave an out of fuel error!", turtle_id)
+    }
+
+    // Errors that require a directive to be dealt with properly go beneath this
+    let Some(directive) = directive else {
+        warn!("Turtle {} gave error '{}' and did not have a directive.", turtle_id, error_string);
+        return;
+    };
+
+    match (error_string as &str, directive) {
+        ("movementObstructed", TurtleDirective::GoTo(goal)) => {
+            info!("Turtle {} gave an obstruction error. Current directive is to go to {}", turtle_id, goal);
+
+            // // We unwrap here as the turtle should be registered (meaning it has a file in turtles/) to be pathfinding
+            // let turtle = Turtle::load(TURTLES_FOLDER.into(), turtle_id).unwrap();
+            // let whitelist = WhitelistMap::load(WORLD_FOLDER.into());
+
+            // let path = get_path(turtle.coordinates, &goal, whitelist, turtle);
+            // connections.send_to(turtle_id, TurtleReadable::new("movementPath", ))
+        }
+        // Got an unknown error, and the directive is not tracked
+        (_, _) => {
+            warn!("Turtle {} gave unknown error '{}' and had an untracked directive.", turtle_id, error_string)
+        }
+    }
+}
+
 // NOTE: This function is partially created with AI :(
 // Starts a websocket connection with a turtle.
 // Turtles connect with their id in the query string, e.g. `/websocket?id=5`
@@ -396,10 +437,17 @@ fn ws_verify_file(data: &String, connections: &Arc<TurtleConnections>, turtle_id
 //   - incoming: anything the turtle sends back gets read and can be handled
 //     (logged, parsed, used to update turtle state, etc.)
 #[get("/websocket?<id>")]
-fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnections>>, _key: ApiKey, chunk_mesher: &State<Arc<MeshGenerator>>) -> ws::Channel<'static> {
+fn websocket(
+    ws: ws::WebSocket,
+    id: u16,
+    connections: &State<Arc<TurtleConnections>>,
+    _key: ApiKey,
+    chunk_mesher: &State<Arc<MeshGenerator>>,
+    turtle_manager: &State<Arc<TurtleManager>>
+    ) -> ws::Channel<'static> {
     use rocket::futures::{SinkExt, StreamExt};
 
-    info!("Turtle id {} is connecting.",id);
+    info!("Turtle {} is connecting.",id);
 
     // Loads this turtle to edit its data
     let this_turtle = Turtle::load(TURTLES_FOLDER.into(), id);
@@ -415,9 +463,9 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
         }
     }
 
-
     let connections = connections.inner().clone();
     let shared_mesher = chunk_mesher.inner().clone();
+    let turtle_manager = turtle_manager.inner().clone();
     let (tx, mut rx) = mpsc::unbounded_channel::<ws::Message>();
     connections.register(id, tx);
 
@@ -444,7 +492,7 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
                 // Makes sure that it is a text input
                 let ws::Message::Text(message) = message else {
                     // Unexpected result, we just ignore it
-                    println!("Recieved unexpected websocket result. Ignoring.");
+                    warn!("Recieved unexpected websocket result. Ignoring.");
                     continue
                 };
 
@@ -459,16 +507,17 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
                         "register" => ws_register(&message.data, &connections, id),
                         "sendBlocks" => ws_receive_blocks(&message.data, &shared_mesher),
                         "verifyFile" => ws_verify_file(&message.data, &connections, id),
+                        "error" => ws_handle_error(&message.data, &connections, &turtle_manager, id),
 
                         // Unexpected result, we just ignore it
                         _ => {
-                            println!("Recieved unknown websocket result. Ignoring.");
+                            warn!("Recieved unknown websocket result. Ignoring.");
                             continue
                         }
                         };
                     }
 
-                    Err(_) => println!("Error parsing json. Ignoring.")
+                    Err(_) => warn!("Error parsing json. Ignoring.")
                 }
             }
         };
@@ -479,7 +528,7 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
             _ = incoming => {},
         }
 
-        info!("Turtle id {} is disconnecting.",id);
+        info!("Turtle {} is disconnecting.",id);
 
         // Loads this turtle to edit its data
         let this_turtle = Turtle::load(TURTLES_FOLDER.into(), id);
@@ -698,6 +747,8 @@ async fn rocket() -> _ {
 
     // Initializes the turtle connection manager
     .manage(Arc::new(TurtleConnections::new()))
+    // Initializes the turtle dispatch manager
+    .manage(Arc::new(TurtleManager::new()))
     // Initializes the shared chunk mesher (async because it takes a while)
     .manage(Arc::new(shared_mesher.await))
 

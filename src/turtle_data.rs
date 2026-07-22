@@ -40,7 +40,8 @@ pub struct Turtle {
     pub equipped_left: Option<Slot>,
     pub equipped_right: Option<Slot>,
     pub coordinates: Coordinate,
-    pub fuel: i16
+    pub fuel: i16,
+    pub facing: String
 }
 
 impl Turtle {
