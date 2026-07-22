@@ -58,7 +58,7 @@ class TurtleComponent extends HTMLElement {
         this.loop();
     }
 
-    // Sets it up so the turtle auto fetches data every 1.5 seconds from the server
+    // Sets it up so the turtle auto fetches data every 2 seconds from the server
     loop() {
         setInterval(() => {
             if (this.getAttribute("live_update") == "true") {

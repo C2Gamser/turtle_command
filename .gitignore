@@ -3,4 +3,5 @@
 /world_data
 /minecraft_data/*
 /extracted_minecraft_data/*
+/chunk_meshes/*
 api_key.txt

@@ -41,7 +41,7 @@ impl Chunk {
 
         let chunk_file = lz4_flex::frame::FrameEncoder::new(chunk_file).auto_finish();
 
-        ciborium::into_writer(self, chunk_file).unwrap();
+        ciborium::into_writer(&self, chunk_file).unwrap();
     }
 
     /// Creates a new chunk object from a path that is given

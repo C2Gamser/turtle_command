@@ -2,6 +2,8 @@ use log::info;
 use rocket::form::Form;
 use rocket::fs::{FileServer, NamedFile};
 use serde::{Deserialize, Serialize};
+use std::fs::{Metadata, metadata};
+use std::time::SystemTime;
 use std::{collections::HashMap, path::PathBuf, path::Path, vec, fs};
 use std::sync::{Arc, Mutex};
 use uuid::{Uuid};
@@ -9,9 +11,6 @@ use rocket::{http::Status, serde::json, State};
 use rocket::request::{FromRequest, Request, Outcome};
 use rocket::tokio::sync::mpsc;
 use rocket_ws as ws;
-use schematic_mesher::{
-    BlockPosition, BoundingBox, InputBlock, Mesher, MesherConfig, export_glb, load_resource_pack,
-};
 use chunks::{Chunk, BlockData, WhitelistMap};
 use coordinates::Coordinate;
 use turtle_data::{Turtle};
@@ -261,8 +260,11 @@ fn ws_register(reg_data: &String, connections: &Arc<TurtleConnections>, turtle_i
 }
 
 // Recieves blocks from the turtles to be stored in chunk files
-fn ws_receive_blocks(data: &String) {
+fn ws_receive_blocks(data: &String, chunk_mesher: &Arc<MeshGenerator>) {
     let blocks: Vec<(BlockData, Coordinate)> = json::from_str(&data).unwrap();
+
+    // A list of chunks we updated so we can render meshes for them
+    let mut updated_chunks: Vec<Chunk> = vec![];
 
     for block in blocks.iter() {
         let world_coords = Coordinate::new(block.1.x, block.1.y, block.1.z);
@@ -273,6 +275,17 @@ fn ws_receive_blocks(data: &String) {
 
         chunk.set_block(&local_coords, &BlockData { name: block.0.name.clone(), states: block.0.states.clone() });
         chunk.save(&WORLD_FOLDER);
+
+        updated_chunks.push(chunk);
+    }
+
+    // Meshes each chunk
+    for chunk in updated_chunks {
+        let c = chunk.coordinates.clone();
+        let data = chunk_mesher.mesh_chunk(chunk);
+        if let Some(data) = data {
+            fs::write(CHUNK_MESH_FOLDER.to_owned()+"/"+&format!("{}_{}_{}.glb",c.x,c.y,c.z), data).unwrap();
+        }
     }
 }
 
@@ -346,7 +359,7 @@ fn ws_verify_file(data: &String, connections: &Arc<TurtleConnections>, turtle_id
 //   - incoming: anything the turtle sends back gets read and can be handled
 //     (logged, parsed, used to update turtle state, etc.)
 #[get("/websocket?<id>")]
-fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnections>>, _key: ApiKey) -> ws::Channel<'static> {
+fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnections>>, _key: ApiKey, chunk_mesher: &State<Arc<MeshGenerator>>) -> ws::Channel<'static> {
     use rocket::futures::{SinkExt, StreamExt};
 
     info!("Turtle id {} is connecting.",id);
@@ -367,6 +380,7 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
 
 
     let connections = connections.inner().clone();
+    let shared_mesher = chunk_mesher.inner().clone();
     let (tx, mut rx) = mpsc::unbounded_channel::<ws::Message>();
     connections.register(id, tx);
 
@@ -406,7 +420,7 @@ fn websocket(ws: ws::WebSocket, id: u16, connections: &State<Arc<TurtleConnectio
                     Ok(message) => {
                         let _ = match message.instruction.as_str()  {
                         "register" => ws_register(&message.data, &connections, id),
-                        "sendBlocks" => ws_receive_blocks(&message.data),
+                        "sendBlocks" => ws_receive_blocks(&message.data, &shared_mesher),
                         "verifyFile" => ws_verify_file(&message.data, &connections, id),
                         "ping" => {},
 
@@ -540,20 +554,50 @@ fn all_ids() -> json::Json<Vec<String>> {
     json::Json(turtle_list)
 }
 
-// We send back json containing chunk data
-#[get("/get_chunk/<x>/<y>/<z>")]
-fn get_chunk(x: i32, y: i32, z: i32) -> Option<json::Json<Chunk>> {
-    let chunk = Chunk::load(&WORLD_FOLDER, &coordinates::Coordinate::new(x, y, z));
-
-    chunk.map(|chunk|json::Json(chunk))
-}
-
+// Returns a jsonized list of chunk coordinates that are available in the world folder
 #[get("/get_available_chunks")]
 fn get_available_chunks() -> json::Json<Vec<Coordinate>> {
     let available_chunks = fs::read_dir(&WORLD_FOLDER).unwrap();
 
     let chunk_list: Vec<String> = available_chunks
         .filter_map(|f| f.ok())
+        .filter_map(|f|Some(f.file_name()))
+        .filter_map(|f|Path::new(&f)
+        .file_stem()
+        .map(|f|f.to_string_lossy().to_string().to_owned()))
+        .collect();
+
+    let chunk_list: Vec<Coordinate> = chunk_list.iter().filter_map(|f| {
+        match f.as_str() {
+            "whitelist" => None,
+            _ => {
+                let coords: Vec<i32> = f.split("_").map(|f|f.parse().unwrap()).collect();
+                Some(Coordinate::new(coords[0], coords[1], coords[2]))
+            }
+        }
+    }).collect();
+
+    json::Json(chunk_list)
+}
+
+// Returns a list of chunk coordinates for all chunks that have been updated/created since an epoch time
+#[get("/get_updated_chunks/<epoch_time>")]
+fn get_updated_chunks(epoch_time: u64) -> json::Json<Vec<Coordinate>> {
+    let available_chunks = fs::read_dir(&WORLD_FOLDER).unwrap();
+
+    let chunk_list: Vec<String> = available_chunks
+        .filter_map(|f| f.ok())
+        // This filter map only allows entries if they have been modified after the input time
+        .filter_map(|f|{
+            let md = f.metadata();
+            if md.is_ok() {
+                let epoch_modified = md.unwrap().modified().unwrap().duration_since(SystemTime::UNIX_EPOCH).unwrap();
+                if epoch_modified.as_secs() > epoch_time {
+                    return Some(f)
+                }
+            }
+            return None
+        })
         .filter_map(|f|Some(f.file_name()))
         .filter_map(|f|Path::new(&f)
         .file_stem()
@@ -580,18 +624,16 @@ const FRONTEND_FOLDER: &str = "frontend";
 const TEMP_THREEJS_FOLDER: &str = "threejs";
 const EXTRACTED_DATA_FOLDER: &str = "extracted_minecraft_data";
 const MINECRAFT_DATA_FOLDER: &str = "minecraft_data";
+const CHUNK_MESH_FOLDER: &str = "chunk_meshes";
 
 #[launch]
-fn rocket() -> _ {
+async fn rocket() -> _ {
+    println!("Starting rocket.");
+    let shared_mesher = MeshGenerator::new(EXTRACTED_DATA_FOLDER.into());
     // Extracts a resource pack from a minecraft folder
     let data_extractor = data_extractor::MCDataCrawler::new(MINECRAFT_DATA_FOLDER.into(), EXTRACTED_DATA_FOLDER.into());
     data_extractor.extract_data();
-
-    let test_mesher = MeshGenerator::new(EXTRACTED_DATA_FOLDER.into());
-    let glb_bytes = test_mesher.mesh_all_chunks(WORLD_FOLDER.into());
-
-    std::fs::write("output.glb", glb_bytes).unwrap();
-
+    println!("Done extracting minecraft data.");
     // Creates the world data folder if it doesnt exist
     let path = PathBuf::from(WORLD_FOLDER);
     let _ = fs::create_dir(&path);
@@ -601,13 +643,12 @@ fn rocket() -> _ {
 
     // Sets all registered turtles to be marked as disconnected
     prune_turtles();
+    println!("Done pruning turtles.");
 
     // Creates a new API key if there isn't one
     ApiKey::load_or_new();
 
     rocket::build()
-    // Initializes the turtle connection manager
-    .manage(Arc::new(TurtleConnections::new()))
     // This hosts all the files in the lua folder, so if we recieve a get request that has /lua/filepath it will go to that filepath
     .mount("/".to_owned()+LUA_FOLDER, FileServer::from(LUA_FOLDER.to_owned()+"/"))
     // This hosts all the turtle data for easy frontend access
@@ -616,8 +657,13 @@ fn rocket() -> _ {
     .mount("/".to_owned()+FRONTEND_FOLDER, FileServer::from(FRONTEND_FOLDER.to_owned()+"/"))
     // This hosts all the files in the threejs folder
     .mount("/".to_owned()+TEMP_THREEJS_FOLDER, FileServer::from(TEMP_THREEJS_FOLDER.to_owned()+"/"))
-    // This hosts all the texture data for easy frontend access
-    .mount("/".to_owned()+EXTRACTED_DATA_FOLDER, FileServer::from(EXTRACTED_DATA_FOLDER.to_owned()+"/"))
+    // This hosts all the rendered chunk meshes
+    .mount("/".to_owned()+CHUNK_MESH_FOLDER, FileServer::from(CHUNK_MESH_FOLDER.to_owned()+"/"))
+
+    // Initializes the turtle connection manager
+    .manage(Arc::new(TurtleConnections::new()))
+    // Initializes the shared chunk mesher (async because it takes a while)
+    .manage(Arc::new(shared_mesher.await))
 
     .mount("/", routes![
         websocket,
@@ -628,8 +674,8 @@ fn rocket() -> _ {
         serve_favicon,
         component_test,
         all_ids,
-        get_chunk,
-        get_available_chunks
+        get_available_chunks,
+        get_updated_chunks
         ])
 }
 

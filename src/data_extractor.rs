@@ -10,6 +10,7 @@ use rocket::form::validate::Len;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::path::PathBuf;
+use std::sync::Mutex;
 use zipcrawl::ZipManager;
 use regex::regex;
 use std::io;
@@ -20,11 +21,11 @@ use crate::chunks::{BlockData, Chunk};
 use crate::coordinates::Coordinate;
 
 pub struct MeshGenerator {
-    pub mesher: Mesher
+    pub mesher: Mutex<Mesher>
 }
 
 impl MeshGenerator {
-    pub fn new(resource_path: PathBuf) -> Self {
+    pub async fn new(resource_path: PathBuf) -> Self {
         let pack = load_resource_pack(resource_path).unwrap();
 
         let config = MesherConfig {
@@ -45,83 +46,16 @@ impl MeshGenerator {
         };
 
         let mesher = Mesher::with_config(pack, config);
-        MeshGenerator { mesher }
+
+        MeshGenerator { mesher: Mutex::new(mesher) }
     }
 
     // Outputs json as shown here: https://github.com/Schem-at/Schematic-Mesher
     // Useful: https://docs.rs/serde_json/latest/serde_json/
-    // Maybe refactor to use the dump_chunk function
-    pub fn dump_all_chunks(&self, world_data_path: PathBuf) -> (BoundingBox, Vec<(BlockPosition, InputBlock)>) {
-        let files = fs::read_dir(&world_data_path).unwrap();
-        let mut chunks: Vec<Chunk> = vec![];
-
-        for dir_entry in files {
-            let Ok(dir_entry) = dir_entry else {
-                continue;
-            };
-            let file_name = dir_entry.file_name().to_string_lossy().to_string();
-
-            if file_name == "whitelist" {
-                continue;
-            }
-
-            let name_split: Vec<&str> = file_name.split("_").collect();
-            let x = name_split[0].parse().unwrap();
-            let y = name_split[1].parse().unwrap();
-            let z = name_split[2].parse().unwrap();
-            let new_chunk = Chunk::load(&world_data_path, &Coordinate { x, y, z }).unwrap();
-
-            chunks.push(new_chunk);
-        }
-
-
-        let mut blocks: Vec<(BlockPosition, InputBlock)> = vec![];
-        let mut min_bound: [f32; 3] = [f32::MAX, f32::MAX, f32::MAX];
-        let mut max_bound: [f32; 3] = [f32::MIN, f32::MIN, f32::MIN];
-
-        for chunk in chunks {
-            let c = chunk.coordinates;
-            let wc = [c.x as i32, c.y as i32, c.z as i32];
-            for row in chunk.block_data.iter().enumerate() {
-                for column in row.1.iter().enumerate() {
-                    for block in column.1.iter().enumerate() {
-                        let name = &block.1.name;
-                        // Skip air
-                        if name == "minecraft:air" {
-                            continue;
-                        }
-                        // Converts local block coords to world coords
-                        let position = [wc[0]*16+row.0 as i32, wc[1]*16+column.0 as i32, wc[2]*16+block.0 as i32];
-                        min_bound[0] = min_bound[0].min(position[0] as f32);
-                        min_bound[1] = min_bound[1].min(position[1] as f32);
-                        min_bound[2] = min_bound[2].min(position[2] as f32);
-
-                        max_bound[0] = max_bound[0].max(position[0] as f32);
-                        max_bound[1] = max_bound[1].max(position[1] as f32);
-                        max_bound[2] = max_bound[2].max(position[2] as f32);
-
-                        let mut input_block = InputBlock::new(name);
-                        // Apply properties
-                        for (key, value) in  block.1.states.iter().map(|f|{(f.0.to_string(), f.1.to_string())}) {
-                            input_block.properties.insert(key, value);
-                        };
-
-                        blocks.push((BlockPosition::new(position[0],position[1], position[2]), input_block));
-                    }
-                }
-            }
-        }
-
-        let bounds = BoundingBox::new(min_bound, max_bound);
-
-        return (bounds, blocks);
-    }
 
     pub fn dump_chunk(&self, chunk: Chunk) -> (BoundingBox, Vec<(BlockPosition, InputBlock)>) {
         let mut blocks: Vec<(BlockPosition, InputBlock)> = vec![];
 
-        let c = chunk.coordinates;
-        let wc = [c.x as i32 * 16, c.y as i32 * 16, c.z as i32 * 16];
         for row in chunk.block_data.iter().enumerate() {
             for column in row.1.iter().enumerate() {
                 for block in column.1.iter().enumerate() {
@@ -130,8 +64,8 @@ impl MeshGenerator {
                     if name == "minecraft:air" {
                         continue;
                     }
-                    // Converts local block coords to world coords
-                    let position = [wc[0]+row.0 as i32, wc[1]+column.0 as i32, wc[2]+block.0 as i32];
+                    // Places the blocks locally within the chunk
+                    let position = [row.0 as i32, column.0 as i32, block.0 as i32];
 
                     let mut input_block = InputBlock::new(name);
                     // Apply properties
@@ -144,44 +78,26 @@ impl MeshGenerator {
             }
         }
 
-        let bounds = BoundingBox::new(wc.map(|f|f as f32), wc.map(|f|f as f32 + 16.0));
-
+        let bounds = BoundingBox::new([0.0, 0.0, 0.0], [16.0, 16.0, 16.0]);
         return (bounds, blocks);
     }
 
-    // Returns a byte vec of a glb to be exported directly
-    pub fn mesh_chunk(&self, chunk: Chunk) -> Vec<u8> {
+    // Returns a byte vec of a glb to be exported along with the world coordinates of that chunk (chunk coords * 16)
+    pub fn mesh_chunk(&self, chunk: Chunk) -> Option<Vec<u8>> {
         let (bounding_box, block_data) = self.dump_chunk(chunk);
 
-        let output = self.mesher.mesh_blocks(
-            block_data.iter().map(|(pos, block)| (*pos, block)),
+        let output = self.mesher.lock().unwrap().mesh_blocks(
+            block_data.iter().map(|(pos, block)|(*pos, block)),
             bounding_box,
         ).unwrap();
 
-        let glb_bytes = export_glb(&output).unwrap();
-        glb_bytes
-    }
+        let glb_bytes = export_glb(&output);
 
-    // Also normalizes the bounding box to start at 0, 0
-    pub fn mesh_all_chunks(&self, world_data_path: PathBuf) -> Vec<u8> {
-        let (bounding_box, block_data) = self.dump_all_chunks(world_data_path);
+        let Ok(glb_bytes) = glb_bytes else {
+            return None
+        };
 
-        let offset = bounding_box.min;
-        let new_min: [f32; 3] = [bounding_box.min[0]-offset[0],bounding_box.min[1]-offset[1], bounding_box.min[2]-offset[2]];
-        let new_max: [f32; 3] = [bounding_box.max[0]-offset[0],bounding_box.max[1]-offset[1], bounding_box.max[2]-offset[2]];
-        let normalized_bounds = BoundingBox::new(new_min, new_max);
-
-        let block_data: Vec<(BlockPosition, InputBlock)> = block_data.iter().map(|(f, a)| {
-            (BlockPosition::new(f.x-offset[0] as i32, f.y-offset[1] as i32, f.z-offset[2] as i32), a.clone())
-        }).collect();
-
-        let output = self.mesher.mesh_blocks(
-            block_data.iter().map(|(pos, block)| (*pos, block)),
-            normalized_bounds,
-        ).unwrap();
-
-        let glb_bytes = export_glb(&output).unwrap();
-        glb_bytes
+        return Some(glb_bytes)
     }
 }
 
