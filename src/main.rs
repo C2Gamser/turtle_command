@@ -414,12 +414,17 @@ fn ws_handle_error(error_string: &String, connections: &Arc<TurtleConnections>, 
         ("movementObstructed", TurtleDirective::GoTo(goal)) => {
             info!("Turtle {} gave an obstruction error. Current directive is to go to {}", turtle_id, goal);
 
-            // // We unwrap here as the turtle should be registered (meaning it has a file in turtles/) to be pathfinding
-            // let turtle = Turtle::load(TURTLES_FOLDER.into(), turtle_id).unwrap();
-            // let whitelist = WhitelistMap::load(WORLD_FOLDER.into());
+            // We unwrap here as the turtle should be registered (meaning it has a file in turtles/) to be pathfinding
+            let turtle = Turtle::load(TURTLES_FOLDER.into(), turtle_id).unwrap();
+            let whitelist = WhitelistMap::load(&WORLD_FOLDER);
 
-            // let path = get_path(turtle.coordinates, &goal, whitelist, turtle);
-            // connections.send_to(turtle_id, TurtleReadable::new("movementPath", ))
+            let path = get_path(whitelist, turtle.coordinates, goal, &turtle.facing);
+
+            let Some(path) = path else {
+                return;
+            };
+
+            connections.send_to(turtle_id, TurtleReadable::new("movementPath", &path).to_ws_message());
         }
         // Got an unknown error, and the directive is not tracked
         (_, _) => {
