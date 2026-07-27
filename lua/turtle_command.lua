@@ -233,6 +233,12 @@ local function establish_websocket()
         mv.single_color_print("Websocket connected!", colors.gray)
     end
 
+    -- It is very important that we register right away as the server uses the registration data for lots of operations
+    -- Up to date data on the turtle is important
+    if socket then
+        ws_register(socket)
+    end
+
     return socket
 end
 
@@ -243,6 +249,7 @@ local function handle_move(data)
     elseif data == "turnRight" or data == "right" or data == "r" then
         return mv.right()
     elseif data == "forward" or data == "f" then
+        mv.cache_updown()
         return turtle.forward()
     elseif data == "up" or data == "u" then
         return turtle.up()
@@ -268,27 +275,34 @@ local function handle_path(websocket, data)
             count = 1
         end
 
-        print(v)
-
         -- Handles errors along the way
         for c = 1, count do
             local success, reason = handle_move(action)
-            print(reason)
+            if reason then
+                print(reason)
+            end
+
             if reason == "Movement obstructed" then
-                -- We register here to update the turtle's coordinates/facing direction
+                -- We register here to update the turtle's coordinates/facing direction (imporant for pathfinding)
                 ws_register(websocket)
+                -- Get the nearby block data
+                mv.append_inspect_all()
+                -- Send it all
+                send_block_cache(websocket)
+                -- Tell the server we have an error
                 websocket.send(format_message("error", "movementObstructed"))
+                return false
             elseif reason == "Out of fuel" then
                 -- We register here to update the turtle's coordinates/facing direction
                 ws_register(websocket)
                 websocket.send(format_message("error", "outOfFuel"))
-            end
-
-            if not success then
                 return false
             end
         end
     end
+    print("Successfully reached target!")
+    send_block_cache(websocket)
+    ws_register(websocket)
 end
 
 -- Handles the terminate event so it shuts down the websocket before terminating
@@ -362,7 +376,6 @@ local function persistent_connect(websocket)
         else
             thready.websocket = websocket
             print("Took "..counter.." attempts to connect.")
-            ws_register(websocket)
             return websocket
         end
     end
@@ -383,7 +396,6 @@ mv.single_color_print("Starting turtle command!", colors.green)
 setup_files()
 
 local websocket = establish_websocket()
-ws_register(websocket)
 if not websocket then
     websocket = persistent_connect(websocket)
 end

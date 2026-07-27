@@ -76,6 +76,11 @@ pub fn pathfind(start: &Coordinate, goal: &Coordinate, whitelist: WhitelistMap) 
     let start = Pos(start.x, start.y, start.z);
     let goal = Pos(goal.x, goal.y, goal.z);
 
+    // We can't pathfind to the goal as we know that it is a filled block
+    if map.contains_key(&goal) && map[&goal] == true {
+        return None;
+    }
+
     fn smart_goal(goal: &Pos, check_pos: &Pos, start_pos: &Pos) -> bool {
         if goal == check_pos {
             true

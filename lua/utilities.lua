@@ -200,9 +200,9 @@ local function append_inspect_all()
     append_block_cache(block_cache)
 end
 
--- Utility function, used such that each time the turtle moves it will cache the blocks directly above and below it.
+-- Utility function that will cache the blocks directly above and below it.
 -- Better than running append_inspect_all() each time as that slows the turtle down massively.
-local function cache_updown_move()
+local function cache_updown()
     local x, y, z = gps.locate()
 
     local block_cache = {}
@@ -231,6 +231,6 @@ return {
     single_color_print = single_color_print,
     is_in = is_in,
     append_inspect_all = append_inspect_all,
-    cache_updown_move = cache_updown_move,
-    
+    cache_updown = cache_updown,
+
 }

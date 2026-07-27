@@ -60,8 +60,8 @@ impl MeshGenerator {
             for column in row.1.iter().enumerate() {
                 for block in column.1.iter().enumerate() {
                     let name = &block.1.name;
-                    // Skip air
-                    if name == "minecraft:air" {
+                    // Skip air + grass as grass is annoying
+                    if name == "minecraft:air" || name == "minecraft:short_grass" {
                         continue;
                     }
                     // Places the blocks locally within the chunk

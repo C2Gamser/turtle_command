@@ -1,7 +1,7 @@
 export function Channel(audio_uri) {
     this.audio_uri = audio_uri;
     this.resource = new Audio(audio_uri);
-    this.resource.volume = 0.4;
+    this.resource.volume = 0.3;
 }
 
 Channel.prototype.play = function() {

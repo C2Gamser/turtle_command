@@ -9,14 +9,17 @@ x-turtle {
 
     display:block;
     position: relative;
-    width: 420px;
-    height: 140px;
+    width: 500px;
+    height: 130px;
     padding: 30px;
     background: black;
-    color: white;
     word-wrap: break-word;
 
     margin-top: 40px;
+
+    /* Handles the transition */
+    transition:
+        height 0.15s;
 
     /* Handles the border */
     image-rendering: pixelated;
@@ -83,17 +86,25 @@ x-turtle {
         cursor: pointer
     }
 
-    /* makes it so the user cannot select anything in the turtle */
-    /* * {
-        -moz-user-select: -moz-none;
-        -khtml-user-select: none;
-        -webkit-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-    } */
+    .showOnExpand {
+        display: none;
+    }
 }
 
-/* makes turtle text red if it isn't connected */
-[data-connected="false"] {
-    color: red;
+/* makes turtle text gray if it isn't connected */
+[connected="false"] {
+    color: gray;
+}
+
+/* handles the expanded state of the turtle */
+[expanded="true"] {
+    height: 200px;
+
+    .showOnExpand {
+        display: block;
+    }
+
+    .hideOnExpand {
+        display: none;
+    }
 }

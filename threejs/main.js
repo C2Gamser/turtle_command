@@ -18,7 +18,7 @@ renderer.setSize( width, height );
 renderer.setAnimationLoop( animate );
 document.body.appendChild( renderer.domElement );
 
-const light = new THREE.AmbientLight( 0xffffff, 15 ); // white light
+const light = new THREE.AmbientLight( 0xffffff, 4 ); // white light
 scene.add( light );
 
 let rayCaster = new THREE.Raycaster();
@@ -51,6 +51,10 @@ function getTurtlePos(id) {
 }
 
 const loader = new GLTFLoader();
+// Pretty sure this function doesn't work due to my faulty logic
+// TODO: FIX THIS
+// The reason it doesn't work is because a chunk updated e.g. at time 100 will not match a time of 125 on the server side
+// I'm gonna need more complex logic for this on either server side or here
 function update_chunks(loader, get_all) {
 	let selector = document.getElementById("turtleSelector")
 	let cur_time = Date.now();

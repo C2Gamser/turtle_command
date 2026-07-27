@@ -1,9 +1,8 @@
 use log::info;
-use rocket::form::{Error, Form};
+use rocket::form::Form;
 use rocket::fs::{FileServer, NamedFile};
-use schematic_mesher::mesher::entity;
 use serde::{Deserialize, Serialize};
-use std::fs::{Metadata, metadata};
+use std::fmt;
 use std::time::SystemTime;
 use std::{collections::HashMap, path::PathBuf, path::Path, vec, fs};
 use std::sync::{Arc, Mutex};
@@ -95,9 +94,23 @@ impl TurtleReadable {
 #[derive(Clone)]
 enum TurtleDirective {
     // Turtle is available for dispatch/directive
-    Available(),
+    Available,
     // Send turtle to a world coordinate
     GoTo(Coordinate)
+}
+
+impl fmt::Display for TurtleDirective {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::Available => {
+                write!(f, "Available")
+            }
+            Self::GoTo(c) => {
+                write!(f, "GoTo {}", c)
+            }
+        }
+
+    }
 }
 
 struct TurtleManager {
@@ -109,8 +122,8 @@ impl TurtleManager {
         TurtleManager { turtles: Mutex::new(HashMap::new()) }
     }
 
-    fn add_turtle(&mut self, turtle_id: u16) {
-        self.turtles.lock().unwrap().insert(turtle_id, TurtleDirective::Available());
+    fn add_turtle(&self, turtle_id: u16) {
+        self.turtles.lock().unwrap().insert(turtle_id, TurtleDirective::Available);
     }
 
     fn get_directive(&self, turtle_id: u16) -> Option<TurtleDirective> {
@@ -119,7 +132,7 @@ impl TurtleManager {
 
     // Sets the turtle's directive to go to a goal coordinate
     // Returns true or false depending on if it succeeded in setting the directive
-    fn set_position_goal(&mut self, turtle_id: u16, goal: Coordinate) -> bool {
+    fn set_position_goal(&self, turtle_id: u16, goal: Coordinate) -> bool {
         let mut binding = self.turtles.lock().unwrap();
         let entry = binding.get_mut(&turtle_id);
 
@@ -131,6 +144,24 @@ impl TurtleManager {
 
         true
     }
+
+    fn dispatch_position_goal(&self, turtle_id: u16, goal: Coordinate, connections: &Arc<TurtleConnections>) {
+        // We unwrap here as the turtle should be registered (meaning it has a file in turtles/) to be pathfinding
+        let turtle = Turtle::load(TURTLES_FOLDER.into(), turtle_id).unwrap();
+
+        let whitelist = WhitelistMap::load(&PathBuf::from(WORLD_FOLDER).join("whitelist"));
+
+        let path = get_path(whitelist, turtle.coordinates, goal, &turtle.facing);
+
+        let Some(path) = path else {
+            warn!("Couldn't find path from {} to {} for turtle {}'s {} directive.",turtle.coordinates, goal, turtle_id, self.get_directive(turtle_id).unwrap());
+            return;
+        };
+
+        connections.send_to(turtle_id, TurtleReadable::new("movementPath", &path).to_ws_message());
+    }
+
+
 }
 
 // NOTE: This function is partially created with AI :(
@@ -401,7 +432,8 @@ fn ws_handle_error(error_string: &String, connections: &Arc<TurtleConnections>, 
     // Generic errors that should be dealt with even when no directive is present go here
     if error_string == "outOfFuel" {
         // TODO: Implement turtles refueling other turtles if they run out
-        warn!("Turtle {} gave an out of fuel error!", turtle_id)
+        warn!("Turtle {} gave an out of fuel error!", turtle_id);
+        return;
     }
 
     // Errors that require a directive to be dealt with properly go beneath this
@@ -410,25 +442,14 @@ fn ws_handle_error(error_string: &String, connections: &Arc<TurtleConnections>, 
         return;
     };
 
-    match (error_string as &str, directive) {
+    match (error_string as &str, &directive) {
         ("movementObstructed", TurtleDirective::GoTo(goal)) => {
-            info!("Turtle {} gave an obstruction error. Current directive is to go to {}", turtle_id, goal);
-
-            // We unwrap here as the turtle should be registered (meaning it has a file in turtles/) to be pathfinding
-            let turtle = Turtle::load(TURTLES_FOLDER.into(), turtle_id).unwrap();
-            let whitelist = WhitelistMap::load(&WORLD_FOLDER);
-
-            let path = get_path(whitelist, turtle.coordinates, goal, &turtle.facing);
-
-            let Some(path) = path else {
-                return;
-            };
-
-            connections.send_to(turtle_id, TurtleReadable::new("movementPath", &path).to_ws_message());
+            info!("Turtle {} gave an obstruction error. Current directive: {}", turtle_id, &directive);
+            turtle_manager.dispatch_position_goal(turtle_id, *goal, connections);
         }
         // Got an unknown error, and the directive is not tracked
         (_, _) => {
-            warn!("Turtle {} gave unknown error '{}' and had an untracked directive.", turtle_id, error_string)
+            warn!("Turtle {} gave unknown error '{}' and had an untracked directive.", turtle_id, error_string);
         }
     }
 }
@@ -468,9 +489,15 @@ fn websocket(
         }
     }
 
+    // For managing sending/recieving websocket turtle data
     let connections = connections.inner().clone();
+    // The mesher for chunks, required for when blocks are recieved to remesh chunks
     let shared_mesher = chunk_mesher.inner().clone();
+    // The object that can manage/store persistent goals like pathfinding
     let turtle_manager = turtle_manager.inner().clone();
+
+    turtle_manager.add_turtle(id);
+
     let (tx, mut rx) = mpsc::unbounded_channel::<ws::Message>();
     connections.register(id, tx);
 
@@ -485,6 +512,7 @@ fn websocket(
             }
         };
 
+        // Handles incoming messages from turtles
         let incoming = async {
             loop {
                 let message = source.next().await;
@@ -607,15 +635,25 @@ struct WebCommand<'r> {
 
 // Forwards a form submission to the specific turtle's open websocket connection, if one exists.
 #[post("/web_command", data = "<command>")]
-fn web_command(command: Form<WebCommand<'_>>, connections: &State<Arc<TurtleConnections>>) -> Status {
+fn web_command(command: Form<WebCommand<'_>>, connections: &State<Arc<TurtleConnections>>, turtle_manager: &State<Arc<TurtleManager>>) {
+    let manager = turtle_manager.inner().clone();
 
-    let message = TurtleReadable::new(command.kind, command.data).to_ws_message();
+    // TODO: Expand this section out. Maybe switch it to a whole new route?
+    // Really this is just a test function for now
+    if command.kind == "goTo" {
+        // For persistent commands like pathfinding
+        let data_split: Vec<i32> = command.data.split(" ").map(|f|f.parse().unwrap()).collect();
+        let goal: Coordinate = Coordinate { x: data_split[0], y: data_split[1], z: data_split[2] };
 
-    if connections.send_to(command.id, message) {
-        Status::Ok
+        manager.set_position_goal(command.id, goal);
+
+        turtle_manager.dispatch_position_goal(command.id, goal, connections);
+
     } else {
-        // No open websocket for that turtle id
-        Status::NotFound
+        // For single time commands like movementPath, move, or others
+        let message = TurtleReadable::new(command.kind, command.data).to_ws_message();
+
+        connections.send_to(command.id, message);
     }
 }
 

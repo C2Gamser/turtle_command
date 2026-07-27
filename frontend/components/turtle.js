@@ -9,7 +9,7 @@ class Coordinates {
     }
 
     toString() {
-        return `X: ${this.x} Y: ${this.y} Z: ${this.z}`
+        return `X:${this.x} Y:${this.y} Z:${this.z}`
     }
 }
 
@@ -48,11 +48,26 @@ class TurtleComponent extends HTMLElement {
         this.innerHTML = `
             <button class="powerButton"></button>
             <img class="greenLight" src=/frontend/resources/images/turtle_green_light_off.png>
-            <div class="turtleID"></div>
+            <div class="turtleID hideOnExpand"></div>
+
+            <label class="showOnExpand">Command Kind:</label>
+            <input class="showOnExpand" type="text" name="kind" value="">
+            <label class="showOnExpand">Command Contents:</label>
+            <input class="showOnExpand" type="text" name="data" value="">
+
             <div class="coordinates"></div>
-            <div class="fuel"></div>
+            <div class="fuel hideOnExpand"></div>
             <x-turtle-inventory></x-turtle-inventory>
         `;
+
+        // Handles collapsing and showing the contents of the turtle
+        this.getElementsByClassName("powerButton")[0].addEventListener("click", function (e) {
+            if (this.parentElement.getAttribute("expanded") == "true") {
+                this.parentElement.setAttribute("expanded", "false")
+            } else {
+                this.parentElement.setAttribute("expanded", "true")
+            }
+        });
 
         this.update();
         this.loop();
@@ -87,7 +102,7 @@ class TurtleComponent extends HTMLElement {
             let turtle_inventory = this.querySelector("x-turtle-inventory")
             turtle_inventory.contents = new_turt.inventory.slots
 
-            this.setAttribute("data-connected", new_turt.connected)
+            this.setAttribute("connected", new_turt.connected)
         });
     }
 }
