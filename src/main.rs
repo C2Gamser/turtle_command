@@ -384,8 +384,9 @@ fn ws_send_lua_file(file_name: &String, connections: &Arc<TurtleConnections>, tu
     return true;
 }
 
-fn resolve_safe_path(file_name: &str) -> Option<PathBuf> {
-    let base = Path::new(LUA_FOLDER).canonicalize().ok()?;
+// Makes sure that a path is within the specified "within_path" path
+fn resolve_safe_path(within_path: &str, file_name: &str) -> Option<PathBuf> {
+    let base = Path::new(within_path).canonicalize().ok()?;
     let candidate = base.join(file_name);
 
     // canonicalize() resolves the path + requires it to exist
@@ -399,13 +400,12 @@ fn resolve_safe_path(file_name: &str) -> Option<PathBuf> {
     }
 }
 
-// This might be unsafe as people may be able to hash any file on the system based on the way im handing the path
 fn ws_verify_file(data: &String, connections: &Arc<TurtleConnections>, turtle_id: u16) {
     let data: (String, String) = json::from_str(&data).unwrap();
     let file_name = data.0;
     let file_hash = data.1;
 
-    let Some(server_file_path) = resolve_safe_path(&file_name) else {
+    let Some(server_file_path) = resolve_safe_path(LUA_FOLDER, &file_name) else {
         connections.send_to(turtle_id, TurtleReadable::new("fileNotFound", &file_name.to_string()).to_ws_message());
         return
     };

@@ -92,7 +92,6 @@ class TurtleComponent extends HTMLElement {
             })
             // Sets the status message depending on if the request failed or worked
             .then((value) => {
-                console.log(value)
                 if (value.ok) {
                     let status_indicator = this.parentElement.querySelector("#webCommandStatus")
                     status_indicator.innerHTML = "Successfully sent."

@@ -86,10 +86,6 @@ x-turtle {
         cursor: pointer
     }
 
-    .showOnExpand {
-        display: none;
-    }
-
     .terminalInput {
         color:#dbdb6b;
 
@@ -106,6 +102,7 @@ x-turtle {
         }
     }
 
+    /* We have the important tag so it overrides the inline css which sets the color of the status element */
     [status="none"] {
         opacity: 0 !important;
         transition: opacity 2s !important;
@@ -127,4 +124,16 @@ x-turtle {
     .hideOnExpand {
         display: none;
     }
+}
+
+/* handles the expanded state of the turtle */
+[expanded="false"] {
+    .showOnExpand {
+        display: none;
+    }
+
+    .hideOnExpand {
+        display: block;
+    }
+
 }
