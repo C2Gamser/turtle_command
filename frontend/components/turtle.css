@@ -104,8 +104,11 @@ x-turtle {
 
             color: white;
         }
+    }
 
-
+    [status="none"] {
+        opacity: 0 !important;
+        transition: opacity 2s !important;
     }
 }
 
@@ -116,8 +119,7 @@ x-turtle {
 
 /* handles the expanded state of the turtle */
 [expanded="true"] {
-    height: 220px;
-
+    height: 260px;
     .showOnExpand {
         display: block;
     }

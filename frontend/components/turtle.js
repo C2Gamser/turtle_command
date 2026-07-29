@@ -53,7 +53,7 @@ class TurtleComponent extends HTMLElement {
             <div class="fuel hideOnExpand"></div>
 
 
-            <form id="web_command_form" class="showOnExpand" action="/web_command" method="post">
+            <form id="webCommandForm" class="showOnExpand" action="/web_command" method="post">
                 <input type="hidden" name="id" value="${this.getAttribute("turtle_id")}" />
 
                 <label for="kind">Command Kind:</label>
@@ -70,23 +70,54 @@ class TurtleComponent extends HTMLElement {
                 <input type="submit" hidden />
             </form>
 
+            <div id="webCommandStatus" class="showOnExpand" status="none">test</div>
+
             <x-turtle-inventory></x-turtle-inventory>
         `;
 
         // Handle the form submission element to make it not go to a new page when submitting
-        const turtle_form = this.querySelector("#web_command_form");
+        const turtle_form = this.querySelector("#webCommandForm");
         turtle_form.addEventListener("submit", handleFormSubmission);
 
         function handleFormSubmission(event) {
-            console.log(`Form submitted to ${window.location.origin}/web_command`)
+            console.info(`Form submitted to ${window.location.origin}/web_command`)
 
             fetch(`${window.location.origin}/web_command`, {
-            method: "POST",
-            body: JSON.stringify({
-                id: Number(turtle_form.elements["id"].value),
-                kind: turtle_form.elements["kind"].value,
-                data: turtle_form.elements["data"].value,
-            })});
+                method: "POST",
+                body: JSON.stringify({
+                    id: Number(this.elements["id"].value),
+                    kind: this.elements["kind"].value,
+                    data: this.elements["data"].value,
+                })
+            })
+            // Sets the status message depending on if the request failed or worked
+            .then((value) => {
+                console.log(value)
+                if (value.ok) {
+                    let status_indicator = this.parentElement.querySelector("#webCommandStatus")
+                    status_indicator.innerHTML = "Successfully sent."
+                    status_indicator.style.opacity = "1";
+                    status_indicator.style.color = "#2fd85c";
+                    status_indicator.setAttribute("status", "ok");
+                }
+
+                if (!value.ok) {
+                    let status_indicator = this.parentElement.querySelector("#webCommandStatus")
+                    status_indicator.innerHTML = value.statusText;
+                    status_indicator.style.opacity = "1";
+                    status_indicator.style.color = "#d8402f";
+                    status_indicator.setAttribute("status", "fail");
+                }
+            })
+
+            // Turns the status message off after 1 second
+            setTimeout(() => {
+                let status_indicator = this.parentElement.querySelector("#webCommandStatus")
+                status_indicator.setAttribute("status", "none")
+            }, 1000);
+
+
+            this.reset()
 
             event.preventDefault();
         }
