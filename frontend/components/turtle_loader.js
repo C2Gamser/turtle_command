@@ -1,5 +1,3 @@
-import { MultiAudio } from "/frontend/scripts/click_audio.js";
-
 class TurtleLoaderComponent extends HTMLElement {
     connectedCallback() {
         this.update();
@@ -11,8 +9,6 @@ class TurtleLoaderComponent extends HTMLElement {
         .then((response) => response.json())
         .then((data) => {
             this.innerHTML = " "
-            // Manages click audio for all loaded turtles
-            let click_audio = new MultiAudio("/frontend/resources/audio/Click_stereo.ogg", 8)
 
             // We use a mutation observer to make sure the content is loaded before applying event listeners for clicks
             // Sets up an observer config
@@ -25,7 +21,9 @@ class TurtleLoaderComponent extends HTMLElement {
                     for (const addedNode of mutation.addedNodes) {
                         if (addedNode.nodeName == "BUTTON") {
                             addedNode.addEventListener("click", function () {
-                                click_audio.play()
+                                let audio = new Audio("/frontend/resources/audio/Click_stereo.ogg");
+                                audio.volume = 0.3;
+                                audio.play();
                             });
                         }
                     }

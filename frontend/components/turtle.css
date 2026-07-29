@@ -89,6 +89,24 @@ x-turtle {
     .showOnExpand {
         display: none;
     }
+
+    .terminalInput {
+        color:#dbdb6b;
+
+        input {
+            height: 40px;
+            outline: none;
+            width: 400px;
+            font-size: 35px;
+            background-color: rgba(0, 0, 0, 0);
+            font-family: "Mojangles";
+            border-color: rgba(0, 0, 0, 0);
+
+            color: white;
+        }
+
+
+    }
 }
 
 /* makes turtle text gray if it isn't connected */
@@ -98,7 +116,7 @@ x-turtle {
 
 /* handles the expanded state of the turtle */
 [expanded="true"] {
-    height: 200px;
+    height: 220px;
 
     .showOnExpand {
         display: block;

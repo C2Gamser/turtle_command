@@ -30,8 +30,6 @@
             needs_correction = true
         }
 
-        import { MultiAudio } from "/frontend/scripts/click_audio.js";
-
         const slider = document.getElementById('fontSizeSlider');
         const valueLabel = document.getElementById('fontSizeValue');
 
@@ -44,10 +42,10 @@
             valueLabel.textContent = `${Number.parseFloat(zoom).toFixed(1)}`;
         });
 
-        let multi_audio = new MultiAudio("/frontend/resources/audio/Click_stereo.ogg", 8)
-
         slider.addEventListener("click", function () {
-            multi_audio.play()
+            let audio = new Audio("/frontend/resources/audio/Click_stereo.ogg");
+            audio.volume = 0.3;
+            audio.play();
         });
 
     </script>

@@ -1,6 +1,6 @@
 use log::info;
-use rocket::form::Form;
 use rocket::fs::{FileServer, NamedFile};
+use rocket::serde::json::Json;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::time::SystemTime;
@@ -626,7 +626,7 @@ async fn component_test() -> Result<NamedFile, std::io::Error> {
     NamedFile::open("frontend/component_test.html").await
 }
 
-#[derive(FromForm, Debug)]
+#[derive(FromForm, Debug, Deserialize)]
 struct WebCommand<'r> {
     id: u16,
     kind: &'r str,
@@ -635,7 +635,7 @@ struct WebCommand<'r> {
 
 // Forwards a form submission to the specific turtle's open websocket connection, if one exists.
 #[post("/web_command", data = "<command>")]
-fn web_command(command: Form<WebCommand<'_>>, connections: &State<Arc<TurtleConnections>>, turtle_manager: &State<Arc<TurtleManager>>) {
+fn web_command(command: Json<WebCommand<'_>>, connections: &State<Arc<TurtleConnections>>, turtle_manager: &State<Arc<TurtleManager>>) {
     let manager = turtle_manager.inner().clone();
 
     // TODO: Expand this section out. Maybe switch it to a whole new route?
@@ -810,8 +810,7 @@ async fn rocket() -> _ {
 }
 
 // TODO:
-// Implement pings on the rust side to make sure the connection is active
-// See if you can move over the pathfinding and world exploration code from the turtleswarm project
+// Continue work on the rendered world visuals, consider switching to bevy?
 // Add a login system so only people who are authorized can send commands to turtles (maybe)
 // Add world file importing
-// Add a system so turtles can hash their files to determine if they are out of date
+// Change the persistent goal system to not require a "jumpstart" and instead be proactive from the server side

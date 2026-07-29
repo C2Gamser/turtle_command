@@ -48,17 +48,48 @@ class TurtleComponent extends HTMLElement {
         this.innerHTML = `
             <button class="powerButton"></button>
             <img class="greenLight" src=/frontend/resources/images/turtle_green_light_off.png>
-            <div class="turtleID hideOnExpand"></div>
-
-            <label class="showOnExpand">Command Kind:</label>
-            <input class="showOnExpand" type="text" name="kind" value="">
-            <label class="showOnExpand">Command Contents:</label>
-            <input class="showOnExpand" type="text" name="data" value="">
-
-            <div class="coordinates"></div>
+            <div class="turtleID"></div>
+            <div class="coordinates hideOnExpand"></div>
             <div class="fuel hideOnExpand"></div>
+
+
+            <form id="web_command_form" class="showOnExpand" action="/web_command" method="post">
+                <input type="hidden" name="id" value="${this.getAttribute("turtle_id")}" />
+
+                <label for="kind">Command Kind:</label>
+                <div class="terminalInput showOnExpand" class="showOnExpand">
+                    >
+                    <input autocomplete="off" value="" type="text" name="kind" required/>
+                </div>
+                <label for="data">Command Contents:</label>
+                <div class="terminalInput showOnExpand" class="showOnExpand">
+                    >
+                    <input autocomplete="off" value="" type="text" name="data"/>
+                </div>
+
+                <input type="submit" hidden />
+            </form>
+
             <x-turtle-inventory></x-turtle-inventory>
         `;
+
+        // Handle the form submission element to make it not go to a new page when submitting
+        const turtle_form = this.querySelector("#web_command_form");
+        turtle_form.addEventListener("submit", handleFormSubmission);
+
+        function handleFormSubmission(event) {
+            console.log(`Form submitted to ${window.location.origin}/web_command`)
+
+            fetch(`${window.location.origin}/web_command`, {
+            method: "POST",
+            body: JSON.stringify({
+                id: Number(turtle_form.elements["id"].value),
+                kind: turtle_form.elements["kind"].value,
+                data: turtle_form.elements["data"].value,
+            })});
+
+            event.preventDefault();
+        }
 
         // Handles collapsing and showing the contents of the turtle
         this.getElementsByClassName("powerButton")[0].addEventListener("click", function (e) {
