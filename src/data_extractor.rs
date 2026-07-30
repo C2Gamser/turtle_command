@@ -1,9 +1,4 @@
 use file_crawler::prelude::*;
-use minecraft_assets::api::AssetPack;
-use minecraft_assets::schemas::BlockStates::{Multipart, Variants};
-use minecraft_assets::schemas::blockstates::ModelProperties;
-use minecraft_assets::schemas::blockstates::multipart::Condition;
-use minecraft_assets::schemas::blockstates::multipart::WhenClause::{Or, Single};
 use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -13,7 +8,7 @@ use std::io;
 use schematic_mesher::{
     BlockPosition, BoundingBox, InputBlock, Mesher, MesherConfig, TintProvider, export_glb, load_resource_pack,
 };
-use crate::chunks::{BlockData, Chunk};
+use crate::chunks::Chunk;
 
 pub struct MeshGenerator {
     pub mesher: Mutex<Mesher>

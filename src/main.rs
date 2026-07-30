@@ -62,12 +62,16 @@ impl ApiKey {
         }
     }
 
-    fn equal_to_string(&self, check_with: &str) -> bool {
-        if Uuid::parse_str(check_with).is_err() {
-            return false
-        }
 
-        self.uuid == Uuid::parse_str(check_with).unwrap()
+    // Can unwrap if the "check with" string does not properly parse into a UUID
+    fn equal_to_string(&self, check_with: &str) -> bool {
+        let check_with = Uuid::parse_str(check_with);
+
+        if check_with.is_err() {
+            return false
+        };
+
+        self.uuid == check_with.unwrap()
     }
 }
 
@@ -223,6 +227,11 @@ impl<'r> FromRequest<'r> for ApiKey {
 
 // Turns a string like "dlllrrrruudr" into "dl3r4u2dr"
 fn run_length_encode_string(input: &String) -> String {
+    // Handles if the input is empty, just passes on that empty string
+    if input.len() == 0 {
+        return "".to_string();
+    }
+
     let mut final_string = "".to_string();
 
     let mut chars = input.chars();
@@ -305,7 +314,10 @@ fn get_path(whitelist: WhitelistMap, from: Coordinate, to: Coordinate, turtle_fa
                     (0, 0, 1, "e") => ("rf","s"),
                     (0, 0, 1, "n") => ("llf","s"),
 
-                    _ => ("ERR", "ERR")
+                    _ => {
+                        warn!("Recieved unknown result from pathfinder. Sending ERR command to turtle.");
+                        ("ERR", "ERR")
+                    }
                 };
 
                 turtle_direction = direction_moved.1;
@@ -364,7 +376,7 @@ fn ws_receive_blocks(data: &String, chunk_mesher: &Arc<MeshGenerator>) {
 }
 
 fn ws_send_lua_file(file_name: &String, connections: &Arc<TurtleConnections>, turtle_id: u16) -> bool {
-    let file_data = fs::read_to_string(LUA_FOLDER.to_owned()+"/"+file_name);
+    let file_data = fs::read_to_string(resolve_safe_path(LUA_FOLDER, file_name).unwrap());
 
     let Ok(file_data) = file_data else {
         println!("Couldn't read file path {:?}", file_data);
@@ -400,11 +412,17 @@ fn resolve_safe_path(within_path: &str, file_name: &str) -> Option<PathBuf> {
     }
 }
 
+// Takes in data to be deserialized in json
+// The file name specifies which file to verify the given deserialized file hash with in the lua folder
+// This generates a hash for the given file name, and compares it with the given hash, executing different actions depending on the result
+// On the lua side, the turtle does this every time it starts up. If it ever recieves a download file command from ws_send_lua_file, it will replace the files it has
+// If the replaced file on the lua side is the main turtle_command/turtle_command.lua file, it will also auto-restart the turtle
 fn ws_verify_file(data: &String, connections: &Arc<TurtleConnections>, turtle_id: u16) {
     let data: (String, String) = json::from_str(&data).unwrap();
     let file_name = data.0;
     let file_hash = data.1;
 
+    // If we simply couldn't find that file in the lua folder, send back fileNotFound and the file name as the payload
     let Some(server_file_path) = resolve_safe_path(LUA_FOLDER, &file_name) else {
         connections.send_to(turtle_id, TurtleReadable::new("fileNotFound", &file_name.to_string()).to_ws_message());
         return
@@ -412,16 +430,18 @@ fn ws_verify_file(data: &String, connections: &Arc<TurtleConnections>, turtle_id
 
     let server_file_hash = server_file_path.hash();
 
-    // Verify that the message is ok
+    // Verify that the message is ok, if not send back improperly formatted file hash
     let Ok(server_file_hash) = server_file_hash else {
-        connections.send_to(turtle_id, TurtleReadable::new("fileNotFound", &file_name.to_string()).to_ws_message());
+        connections.send_to(turtle_id, TurtleReadable::new("badFileHash", &file_name.to_string()).to_ws_message());
         return
     };
 
     // Either tells the turtle the file is fine or tells it to re-download the file
     if server_file_hash == file_hash {
+        // Tells the turtle that both files are identical, all ok
         connections.send_to(turtle_id, TurtleReadable::new("fileIdentical", &file_name.to_string()).to_ws_message());
     } else {
+        // Send the turtle the entire file over websocket which will then be saved
         ws_send_lua_file(&file_name.to_string(), connections, turtle_id);
     }
 }
@@ -536,17 +556,18 @@ fn websocket(
                 // We make sure that the json deserialized properly
                 match message {
                     Ok(message) => {
+                        // Handle different messages differently
                         let _ = match message.instruction.as_str()  {
-                        "register" => ws_register(&message.data, &connections, id),
-                        "sendBlocks" => ws_receive_blocks(&message.data, &shared_mesher),
-                        "verifyFile" => ws_verify_file(&message.data, &connections, id),
-                        "error" => ws_handle_error(&message.data, &connections, &turtle_manager, id),
+                            "register" => ws_register(&message.data, &connections, id),
+                            "sendBlocks" => ws_receive_blocks(&message.data, &shared_mesher),
+                            "verifyFile" => ws_verify_file(&message.data, &connections, id),
+                            "error" => ws_handle_error(&message.data, &connections, &turtle_manager, id),
 
-                        // Unexpected result, we just ignore it
-                        _ => {
-                            warn!("Recieved unknown websocket result. Ignoring.");
-                            continue
-                        }
+                            // Unexpected result, we just ignore it
+                            _ => {
+                                warn!("Recieved unknown websocket result. Ignoring.");
+                                continue
+                            }
                         };
                     }
 
