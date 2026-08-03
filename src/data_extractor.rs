@@ -1,10 +1,13 @@
 use file_crawler::prelude::*;
+<<<<<<< HEAD
 use log::Level::Error;
 use minecraft_assets::api::AssetPack;
 use minecraft_assets::schemas::BlockStates::{Multipart, Variants};
 use minecraft_assets::schemas::blockstates::ModelProperties;
 use minecraft_assets::schemas::blockstates::multipart::Condition;
 use minecraft_assets::schemas::blockstates::multipart::WhenClause::{Or, Single};
+=======
+>>>>>>> a44e58f63d3a2a86c3022a975e840cc3c12d7553
 use std::fs::{self, File};
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -14,7 +17,7 @@ use std::io;
 use schematic_mesher::{
     BlockPosition, BoundingBox, InputBlock, Mesher, MesherConfig, TintProvider, export_glb, load_resource_pack,
 };
-use crate::chunks::{BlockData, Chunk};
+use crate::chunks::Chunk;
 
 pub struct MeshGenerator {
     pub mesher: Mutex<Mesher>
