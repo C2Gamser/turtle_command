@@ -3,6 +3,7 @@ use rocket::fs::{FileServer, NamedFile};
 use rocket::serde::json::Json;
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::hash::Hash;
 use std::time::SystemTime;
 use std::{collections::HashMap, path::PathBuf, path::Path, vec, fs};
 use std::sync::{Arc, Mutex};
@@ -100,7 +101,9 @@ enum TurtleDirective {
     // Turtle is available for dispatch/directive
     Available,
     // Send turtle to a world coordinate
-    GoTo(Coordinate)
+    GoTo(Coordinate),
+    // Turtle is disconnected or otherwise disabled
+    Unavailable
 }
 
 impl fmt::Display for TurtleDirective {
@@ -112,60 +115,12 @@ impl fmt::Display for TurtleDirective {
             Self::GoTo(c) => {
                 write!(f, "GoTo {}", c)
             }
+            Self::Unavailable => {
+                write!(f, "Unavailable")
+            }
         }
 
     }
-}
-
-struct TurtleManager {
-    turtles: Mutex<HashMap<u16, TurtleDirective>>
-}
-
-impl TurtleManager {
-    fn new() -> Self {
-        TurtleManager { turtles: Mutex::new(HashMap::new()) }
-    }
-
-    fn add_turtle(&self, turtle_id: u16) {
-        self.turtles.lock().unwrap().insert(turtle_id, TurtleDirective::Available);
-    }
-
-    fn get_directive(&self, turtle_id: u16) -> Option<TurtleDirective> {
-        return self.turtles.lock().unwrap().get(&turtle_id).cloned();
-    }
-
-    // Sets the turtle's directive to go to a goal coordinate
-    // Returns true or false depending on if it succeeded in setting the directive
-    fn set_position_goal(&self, turtle_id: u16, goal: Coordinate) -> bool {
-        let mut binding = self.turtles.lock().unwrap();
-        let entry = binding.get_mut(&turtle_id);
-
-        let Some(entry) = entry else {
-            return false;
-        };
-
-        *entry = TurtleDirective::GoTo(goal);
-
-        true
-    }
-
-    fn dispatch_position_goal(&self, turtle_id: u16, goal: Coordinate, connections: &Arc<TurtleConnections>) {
-        // We unwrap here as the turtle should be registered (meaning it has a file in turtles/) to be pathfinding
-        let turtle = Turtle::load(TURTLES_FOLDER.into(), turtle_id).unwrap();
-
-        let whitelist = WhitelistMap::load(&PathBuf::from(WORLD_FOLDER).join("whitelist"));
-
-        let path = get_path(whitelist, turtle.coordinates, goal, &turtle.facing);
-
-        let Some(path) = path else {
-            warn!("Couldn't find path from {} to {} for turtle {}'s {} directive.",turtle.coordinates, goal, turtle_id, self.get_directive(turtle_id).unwrap());
-            return;
-        };
-
-        connections.send_to(turtle_id, TurtleReadable::new("movementPath", &path).to_ws_message());
-    }
-
-
 }
 
 // NOTE: This function is partially created with AI :(
@@ -175,16 +130,18 @@ impl TurtleManager {
 // turtle is the one reading from the *receiver* half and forwarding
 // the message out over the actual websocket.
 struct TurtleConnections {
-    senders: Mutex<HashMap<u16, mpsc::UnboundedSender<ws::Message>>>
+    senders: Mutex<HashMap<u16, mpsc::UnboundedSender<ws::Message>>>,
+    turtles: Mutex<HashMap<u16, TurtleDirective>>
 }
 
 impl TurtleConnections {
     fn new() -> Self {
-        TurtleConnections { senders: Mutex::new(HashMap::new()) }
+        TurtleConnections { senders: Mutex::new(HashMap::new()), turtles: Mutex::new(HashMap::new()) }
     }
 
     fn register(&self, id: u16, sender: mpsc::UnboundedSender<ws::Message>) {
         self.senders.lock().unwrap().insert(id, sender);
+        self.turtles.lock().unwrap().insert(id, TurtleDirective::Available);
     }
 
     fn unregister(&self, id: u16) {
@@ -200,11 +157,49 @@ impl TurtleConnections {
         }
     }
 
-
     fn get_connected_ids(&self) -> Vec<u16> {
         let senders_vec = self.senders.lock().unwrap().keys().copied().collect();
         senders_vec
     }
+
+    fn get_directive(&self, id: u16) -> Option<TurtleDirective> {
+        return self.turtles.lock().unwrap().get(&id).cloned();
+    }
+
+    // Sets the turtle's directive to go to a goal coordinate and dispatches it
+    // Returns true or false depending on if it succeeded in setting the directive
+    fn set_position_goal(&self, turtle_id: u16, goal: Coordinate) -> bool {
+        let mut binding = self.turtles.lock().unwrap();
+        let entry = binding.get_mut(&turtle_id);
+
+        let Some(entry) = entry else {
+            return false;
+        };
+
+        *entry = TurtleDirective::GoTo(goal);
+
+        self.dispatch_position_goal(turtle_id, goal);
+
+        true
+    }
+
+    fn dispatch_position_goal(&self, turtle_id: u16, goal: Coordinate) {
+        // We unwrap here as the turtle should be registered (meaning it has a file in turtles/) to be pathfinding
+        let turtle = Turtle::load(TURTLES_FOLDER.into(), turtle_id).unwrap();
+
+        let whitelist = WhitelistMap::load(&PathBuf::from(WORLD_FOLDER).join("whitelist"));
+
+        let path = get_path(whitelist, turtle.coordinates, goal, &turtle.facing);
+
+        let Some(path) = path else {
+            warn!("Couldn't find path from {} to {} for turtle {}'s {} directive.",turtle.coordinates, goal, turtle_id, self.get_directive(turtle_id).unwrap());
+            return;
+        };
+
+        self.send_to(turtle_id, TurtleReadable::new("movementPath", &path).to_ws_message());
+    }
+
+
 }
 
 #[rocket::async_trait]
@@ -428,7 +423,7 @@ fn ws_verify_file(data: &String, connections: &Arc<TurtleConnections>, turtle_id
         return
     };
 
-    let server_file_hash = server_file_path.hash();
+    let server_file_hash = <PathBuf as Hashable>::hash(&server_file_path);
 
     // Verify that the message is ok, if not send back improperly formatted file hash
     let Ok(server_file_hash) = server_file_hash else {
@@ -446,8 +441,8 @@ fn ws_verify_file(data: &String, connections: &Arc<TurtleConnections>, turtle_id
     }
 }
 
-fn ws_handle_error(error_string: &String, connections: &Arc<TurtleConnections>, turtle_manager: &Arc<TurtleManager>, turtle_id: u16) {
-    let directive = turtle_manager.get_directive(turtle_id);
+fn ws_handle_error(error_string: &String, connections: &Arc<TurtleConnections>, turtle_id: u16) {
+    let directive = connections.get_directive(turtle_id);
 
     // Generic errors that should be dealt with even when no directive is present go here
     if error_string == "outOfFuel" {
@@ -465,7 +460,7 @@ fn ws_handle_error(error_string: &String, connections: &Arc<TurtleConnections>, 
     match (error_string as &str, &directive) {
         ("movementObstructed", TurtleDirective::GoTo(goal)) => {
             info!("Turtle {} gave an obstruction error. Current directive: {}", turtle_id, &directive);
-            turtle_manager.dispatch_position_goal(turtle_id, *goal, connections);
+            connections.dispatch_position_goal(turtle_id, *goal);
         }
         // Got an unknown error, and the directive is not tracked
         (_, _) => {
@@ -488,8 +483,7 @@ fn websocket(
     id: u16,
     connections: &State<Arc<TurtleConnections>>,
     _key: ApiKey,
-    chunk_mesher: &State<Arc<MeshGenerator>>,
-    turtle_manager: &State<Arc<TurtleManager>>
+    chunk_mesher: &State<Arc<MeshGenerator>>
     ) -> ws::Channel<'static> {
     use rocket::futures::{SinkExt, StreamExt};
 
@@ -509,14 +503,10 @@ fn websocket(
         }
     }
 
-    // For managing sending/recieving websocket turtle data
+    // For managing sending/recieving websocket turtle data and storing persistent goals
     let connections = connections.inner().clone();
     // The mesher for chunks, required for when blocks are recieved to remesh chunks
     let shared_mesher = chunk_mesher.inner().clone();
-    // The object that can manage/store persistent goals like pathfinding
-    let turtle_manager = turtle_manager.inner().clone();
-
-    turtle_manager.add_turtle(id);
 
     let (tx, mut rx) = mpsc::unbounded_channel::<ws::Message>();
     connections.register(id, tx);
@@ -561,7 +551,7 @@ fn websocket(
                             "register" => ws_register(&message.data, &connections, id),
                             "sendBlocks" => ws_receive_blocks(&message.data, &shared_mesher),
                             "verifyFile" => ws_verify_file(&message.data, &connections, id),
-                            "error" => ws_handle_error(&message.data, &connections, &turtle_manager, id),
+                            "error" => ws_handle_error(&message.data, &connections, id),
 
                             // Unexpected result, we just ignore it
                             _ => {
@@ -656,9 +646,7 @@ struct WebCommand<'r> {
 
 // Forwards a form submission to the specific turtle's open websocket connection, if one exists.
 #[post("/web_command", data = "<command>")]
-fn web_command(command: Json<WebCommand<'_>>, connections: &State<Arc<TurtleConnections>>, turtle_manager: &State<Arc<TurtleManager>>) {
-    let manager = turtle_manager.inner().clone();
-
+fn web_command(command: Json<WebCommand<'_>>, connections: &State<Arc<TurtleConnections>>) {
     // TODO: Expand this section out. Maybe switch it to a whole new route?
     // Really this is just a test function for now
     if command.kind == "goTo" {
@@ -666,10 +654,7 @@ fn web_command(command: Json<WebCommand<'_>>, connections: &State<Arc<TurtleConn
         let data_split: Vec<i32> = command.data.split(" ").map(|f|f.parse().unwrap()).collect();
         let goal: Coordinate = Coordinate { x: data_split[0], y: data_split[1], z: data_split[2] };
 
-        manager.set_position_goal(command.id, goal);
-
-        turtle_manager.dispatch_position_goal(command.id, goal, connections);
-
+        connections.set_position_goal(command.id, goal);
     } else {
         // For single time commands like movementPath, move, or others
         let message = TurtleReadable::new(command.kind, command.data).to_ws_message();
@@ -811,8 +796,6 @@ async fn rocket() -> _ {
 
     // Initializes the turtle connection manager
     .manage(Arc::new(TurtleConnections::new()))
-    // Initializes the turtle dispatch manager
-    .manage(Arc::new(TurtleManager::new()))
     // Initializes the shared chunk mesher (async because it takes a while)
     .manage(Arc::new(shared_mesher.await))
 
