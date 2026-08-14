@@ -597,6 +597,10 @@ fn websocket(
 
 // Checks each turtle's file and sets it to disconnected
 fn prune_turtles() {
+    if !fs::exists(TURTLES_FOLDER).unwrap() {
+        return;
+    };
+
     let registered_turtles = fs::read_dir(TURTLES_FOLDER).unwrap();
 
     let turtle_list = registered_turtles
@@ -768,11 +772,14 @@ async fn rocket() -> _ {
     let data_extractor = data_extractor::MCDataCrawler::new(MINECRAFT_DATA_FOLDER.into(), EXTRACTED_DATA_FOLDER.into());
     data_extractor.extract_data();
     println!("Done extracting minecraft data.");
-    // Creates the world data folder if it doesnt exist
-    let path = PathBuf::from(WORLD_FOLDER);
-    let _ = fs::create_dir(&path);
-
-    let whitelist = WhitelistMap::load_or_new(&path.join("whitelist"));
+    // Creates all the data folders if they don't exist
+    let _ = fs::create_dir(WORLD_FOLDER);
+    let _ = fs::create_dir(TURTLES_FOLDER);
+    let _ = fs::create_dir(EXTRACTED_DATA_FOLDER);
+    let _ = fs::create_dir(MINECRAFT_DATA_FOLDER);
+    let _ = fs::create_dir(CHUNK_MESH_FOLDER);
+    // Makes or loads the whitelist
+    let whitelist = WhitelistMap::load_or_new(&(WORLD_FOLDER.to_owned()+"/whitelist"));
     whitelist.save().unwrap();
 
     // Sets all registered turtles to be marked as disconnected

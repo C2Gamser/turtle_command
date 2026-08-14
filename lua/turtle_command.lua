@@ -231,11 +231,9 @@ local function establish_websocket()
         print(fail_reason)
     else
         mv.single_color_print("Websocket connected!", colors.gray)
-    end
 
-    -- It is very important that we register right away as the server uses the registration data for lots of operations
-    -- Up to date data on the turtle is important
-    if socket then
+        -- It is very important that we register right away as the server uses the registration data for lots of operations
+        -- Up to date data of the turtle on the server is important
         ws_register(socket)
     end
 

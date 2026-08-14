@@ -16,7 +16,11 @@ pub struct MeshGenerator {
 
 impl MeshGenerator {
     pub async fn new(resource_path: PathBuf) -> Self {
-        let pack = load_resource_pack(resource_path).unwrap();
+        let pack = load_resource_pack(&resource_path);
+
+        let Ok(pack) = pack else {
+            panic!("There is no data in {:?}! Please add the contents of a .minecraft folder to the minecraft_data folder.", resource_path)
+        };
 
         let config = MesherConfig {
             cull_hidden_faces: true,      // Remove faces between adjacent blocks
