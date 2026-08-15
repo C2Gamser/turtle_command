@@ -193,6 +193,7 @@ impl TurtleConnections {
 
         let Some(path) = path else {
             warn!("Couldn't find path from {} to {} for turtle {}'s {} directive.",turtle.coordinates, goal, turtle_id, self.get_directive(turtle_id).unwrap());
+            self.send_to(turtle_id, TurtleReadable::new("status", "failure").to_ws_message());
             return;
         };
 
@@ -325,7 +326,7 @@ fn get_path(whitelist: WhitelistMap, from: Coordinate, to: Coordinate, turtle_fa
 
         // No path could be found
         None    => {
-            println!("No path found from {:?} to {:?}!", from, to);
+            warn!("No path from {:?} to {:?}!", from, to);
             None
         }
     }

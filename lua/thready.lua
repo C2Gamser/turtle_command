@@ -218,6 +218,7 @@ function thready.parallelAny(...)
   local args = {...}
 
   for i, fun in ipairs(args) do
+---@diagnostic disable-next-line: param-type-mismatch
     expect(i, fun, "function")
   end
 
@@ -242,6 +243,7 @@ function thready.parallelAll(...)
   local args = {...}
 
   for i, fun in ipairs(args) do
+---@diagnostic disable-next-line: param-type-mismatch
     expect(i, fun, "function")
   end
 
@@ -255,6 +257,7 @@ end
 ---@return integer id The ID of the spawned thread.
 function thready.spawn(set_name, thread_fun, ...)
   expect(1, set_name, "string")
+---@diagnostic disable-next-line: param-type-mismatch
   expect(2, thread_fun, "function")
   --
 
@@ -288,6 +291,7 @@ end
 ---@return integer id The ID of the listener.
 function thready.listen(set_name, event, callback)
   expect(1, event, "string")
+---@diagnostic disable-next-line: param-type-mismatch
   expect(2, callback, "function")
   --
 

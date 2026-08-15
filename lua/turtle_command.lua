@@ -2,7 +2,9 @@ local mv = require("utilities")
 local sha = require("sha1")
 local thready = require("thready")
 
--- Helper function to return url, api_key
+--- Helper function to return (url, api_key)
+---@return string url Formatted like "http://base_url"
+---@return string api_key Get this from the api_key.txt file on the server side
 local function fetch_conneciton_data()
     local url = settings.get("url")
     local api_key = settings.get("api_key")
@@ -18,9 +20,9 @@ local function fetch_conneciton_data()
     return url, api_key
 end
 
--- Makes sure that all the files that must exist, do
--- Also sets up a settings file for the api key, ping time, and server url
--- In the case of the direction file, it will not allow the user to continue the program unless it has a direciton in it (n, s, e, w)
+--- Makes sure that all the files that must exist, do
+--- Also sets up a settings file for the api key, ping time, and server url
+--- In the case of the direction file, it will not allow the user to continue the program unless it has a direciton in it (n, s, e, w)
 local function setup_files()
     if not settings.load("turtle_command/config.settings") then
         settings.set("api_key", "")
@@ -44,11 +46,20 @@ local function setup_files()
 
     if not fs.exists("turtle_command/facing.txt") then
         local file = fs.open("turtle_command/facing.txt","w")
+        if not file then
+            mv.single_color_print("Error: Couldn't create file turtle_command/facing.txt", colors.red)
+            error()
+        end
         file.close()
     end
 
     if not fs.exists("turtle_command/block_cache.txt") then
         local file = fs.open("turtle_command/block_cache.txt","w")
+
+        if not file then
+            mv.single_color_print("Error: Couldn't create file turtle_command/block_cache.txt", colors.red)
+            error()
+        end
         file.close()
     end
 
@@ -68,20 +79,27 @@ local function setup_files()
     end
 end
 
--- Returns instruction, data
--- Kind is always a string representing how to deal with response
+--- Returns (instruction, data)
+--- Kind is always a string representing how to deal with response.
+---@param input string A TurtleReadable rust object serialized into json
+---@return string instruction
+---@return string data
 local function parse_response(input)
     local decoded_json = textutils.unserialiseJSON(input)
+    if not decoded_json then
+        error("Couldn't parse response! Recieved data: "..decoded_json)
+    end
     return decoded_json.instruction, decoded_json.data
 end
 
--- Gets a bunch of data about this turtle
+--- Gets a bunch of data about this turtle
+---@return { id: integer, connected: true, equipped_left: ccTweaked.turtle.slotInfo, equipped_right: ccTweaked.turtle.slotInfo, coordinates: {x: integer, y: integer, z: integer}, inventory_contents: ccTweaked.turtle.slotInfo[], inventory_size: 16, fuel: integer, facing: "n"|"s"|"e"|"w" }
 local function fetch_own_status()
     local x, y, z = nil, nil, nil
 
     local counter = 1
     while not x and counter < 5 do
-        x, y, z = gps.locate(2)
+        x, y, z = gps.locate(2, false)
         counter = counter + 1
     end
 
@@ -112,26 +130,35 @@ local function fetch_own_status()
     return my_data
 end
 
--- Formats a message like {instruction = instruction, data = data} and then json serializes it
+--- Formats a message like {instruction = instruction, data = data} and then json serializes it
+---@param instruction string
+---@param data string
+---@return string serialized_message
 local function format_message(instruction, data)
     local message = {instruction = instruction, data = data}
     return textutils.serialiseJSON(message)
 end
 
--- Hashes the file and sends the hash to the server, the server will likely send back fileIdentical
--- or it may send back a fileData command which downloads a file
+--- Hashes the file and sends the hash to the server, the server will likely send back fileIdentical
+--- or it may send back a fileData command which downloads a file
+---@param websocket ccTweaked.http.Websocket
+---@param file_name string
 local function verify_file_with_server(websocket, file_name)
     if fs.exists("turtle_command/"..file_name) then
         local file = fs.open("turtle_command/"..file_name, "r")
+        if file == nil then
+            error("Couldn't open file turtle_command/"..file_name)
+        end
         local contents = file.readAll()
         file.close()
         local hash = sha.sha1(contents)
         local send_data = {file_name, hash}
-        websocket.send(format_message("verifyFile", textutils.serialiseJSON(send_data)))
+        websocket.send(format_message("verifyFile", textutils.serialiseJSON(send_data)), false)
     end
 end
 
 -- Runs verify_file_with_server on every lua file in turtle_command/
+---@param websocket ccTweaked.http.Websocket
 local function verify_lua_files(websocket)
     local file_list = fs.list("turtle_command/")
     for i, v in pairs(file_list) do
@@ -143,26 +170,35 @@ local function verify_lua_files(websocket)
 end
 
 -- Opens the block cache file, sends all of the data to the server, then clears the file.
+---@param websocket ccTweaked.http.Websocket
 local function send_block_cache(websocket)
     local f = fs.open("turtle_command/block_cache.txt", "r")
+
+    if f == nil then
+        error("Couldn't open turtle_command/block_cache.txt")
+    end
+
     local block_cache = f.readAll()
     f.close()
-    if not block_cache then
+    if not block_cache or block_cache == nil then
         return
     end
 
-    block_cache = textutils.unserialise(block_cache)
+    local block_cache = textutils.unserialise(block_cache)
 
     f = fs.open("turtle_command/block_cache.txt","w")
+    if not f then
+        error("Couldn't open file turtle_command/block_cache.txt")
+    end
     f.close()
 
     if block_cache then
-        local message = format_message("sendBlocks", textutils.serialiseJSON(block_cache))
-        websocket.send(message)
+        websocket.send(format_message("sendBlocks", textutils.serialiseJSON(block_cache)), false)
     end
 end
 
 -- Sends a websocket message with all the turtle's data
+---@param websocket ccTweaked.http.Websocket
 local function ws_register(websocket)
     local send_data = fetch_own_status()
 
@@ -183,15 +219,28 @@ local function ws_register(websocket)
     end
 
     local message = format_message("register", textutils.serialiseJSON(send_data))
-    websocket.send(message)
+    websocket.send(message, false)
 end
 
+---Parses the json string data into file_name and file_content then writes the content to the file name.
+---This will overwrite existing data or create a new file if one doesn't exist.
+---@param data string JSON data
 local function ws_save_file(data)
     local file_data = textutils.unserialiseJSON(data)
+
+    if file_data == nil then
+        error("Recieved nil file data!")
+    end
+
     local file_name = file_data["file_name"]
     local file_content = file_data["content"]
 
     local file = fs.open("turtle_command/"..file_name, "w")
+
+    if file == nil then
+        error("Couldn't open file turtle_command/"..file_name)
+    end
+
     file.write(file_content)
     file.close()
 
@@ -213,7 +262,8 @@ local function ws_save_file(data)
     end
 end
 
--- Creates a websocket with the server address in url.txt
+---Creates a websocket with the server address in url.txt
+---@return ccTweaked.http.Websocket|nil
 local function establish_websocket()
     local url, api_key = fetch_conneciton_data()
 
@@ -225,22 +275,26 @@ local function establish_websocket()
     -- Note: We also submit the ID so the rust server can track which websocket is which
     local server_address = "ws"..url:sub(5, -1).."/websocket?id="..os.getComputerID()
     mv.single_color_print("Establishing websocket connection to "..server_address, colors.gray)
+
+    ---@diagnostic disable-next-line: param-type-mismatch
     local socket, fail_reason = http.websocket({url = server_address, timeout = 5, headers = {api_key = api_key}})
 
     if not socket then
-        print(fail_reason)
+        mv.single_color_print(fail_reason, colors.yellow)
+        return nil
     else
         mv.single_color_print("Websocket connected!", colors.gray)
 
         -- It is very important that we register right away as the server uses the registration data for lots of operations
         -- Up to date data of the turtle on the server is important
         ws_register(socket)
+        return socket
     end
-
-    return socket
 end
 
--- Handles movement instructions
+--- Handles movement instructions
+---@param data string
+---@return boolean
 local function handle_move(data)
     if data == "turnLeft" or data == "left" or data == "l" then
         return mv.left()
@@ -254,12 +308,18 @@ local function handle_move(data)
     elseif data == "down" or data == "d" then
         return turtle.down()
     end
+
+    -- If we reached here, we have an error as there was an unexpected piece of data
+    error("unexpected data while handling move!")
 end
 
--- Handles run length encoding paths
--- Data should be formatted as such:
--- (letter)(number) etc...
--- for example, l4r5u12d1rl means left 4, right 5, up 12, down 1, right, left
+--- Handles run length encoding paths
+--- Data should be formatted as such:
+--- (letter)(number) etc...
+--- for example, l4r5u12d1rl means left 4, right 5, up 12, down 1, right, left
+---@param websocket ccTweaked.http.Websocket
+---@param data string
+---@return boolean success
 local function handle_path(websocket, data)
     local raw_list={}
     data:gsub("%a%d*",function(c) table.insert(raw_list, c) end)
@@ -288,12 +348,12 @@ local function handle_path(websocket, data)
                 -- Send it all
                 send_block_cache(websocket)
                 -- Tell the server we have an error
-                websocket.send(format_message("error", "movementObstructed"))
+                websocket.send(format_message("error", "movementObstructed"), false)
                 return false
             elseif reason == "Out of fuel" then
                 -- We register here to update the turtle's coordinates/facing direction
                 ws_register(websocket)
-                websocket.send(format_message("error", "outOfFuel"))
+                websocket.send(format_message("error", "outOfFuel"), false)
                 return false
             end
         end
@@ -301,11 +361,16 @@ local function handle_path(websocket, data)
     print("Successfully reached target!")
     send_block_cache(websocket)
     ws_register(websocket)
+
+    return true
 end
 
--- Handles the terminate event so it shuts down the websocket before terminating
+--- Handles the terminate event so it shuts down the websocket before terminating as well as shutting down the current multishell if there is more than one multishell open
+---@param websocket ccTweaked.http.Websocket|nil
 local function handle_terminate(websocket)
-    websocket.close()
+    if websocket ~= nil then
+        websocket.close()
+    end
 
     -- Shuts down thready quickly
     thready.running = false
@@ -320,6 +385,12 @@ local function handle_terminate(websocket)
     end
 end
 
+---Handles incoming websocket messages and acts on them
+---@param websocket ccTweaked.http.Websocket
+---@param event_name ccTweaked.os.event
+---@param url string
+---@param message string
+---@param is_binary boolean
 local function handle_websocket_message(websocket, event_name, url, message, is_binary)
     if not mv.verify_address(url) then
         error("Recieved message from non-target web address!")
@@ -341,6 +412,8 @@ local function handle_websocket_message(websocket, event_name, url, message, is_
         -- Do nothing
     elseif  kind == "status" and data == "successful" then
         -- Do nothing
+    elseif  kind == "status" and data == "failure" then
+        mv.single_color_print("Warning: Rep K:"..kind.." D:"..data.." failure recieved.", colors.yellow)
     elseif kind == "testBlockSend" then -- DEBUG
         mv.append_inspect_all()
         send_block_cache(websocket)
@@ -354,10 +427,13 @@ local function handle_websocket_message(websocket, event_name, url, message, is_
     -- TODO: Deal with more responses
 end
 
+---Persistently tries to reconnect to the server every 3 seconds if it fails to connect
+---@param websocket ccTweaked.http.Websocket|nil
+---@return ccTweaked.http.Websocket
 local function persistent_connect(websocket)
     local counter = 0
     while true do
-        if io.type(websocket) == "file" then
+        if io.type(websocket) == "file" and websocket ~= nil then
             websocket.close()
         end
 
@@ -379,6 +455,8 @@ local function persistent_connect(websocket)
     end
 end
 
+---Handles a websocket closure event
+---@param websocket ccTweaked.http.Websocket
 local function handle_websocket_closure(websocket)
     print("Websocket unexpectedly closed!")
     print("Attempting reconnect.")

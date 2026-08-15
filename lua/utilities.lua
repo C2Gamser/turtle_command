@@ -3,7 +3,13 @@ local sha = require("sha1")
 -- Opens, reads, and returns the first line of a file.
 local function read_first_line(filepath)
     local f = fs.open(filepath, "r")
+    if not f then
+        error("Couldn't open "..filepath)
+    end
     local data = f.readLine()
+    if not data then
+        error("Couldn't read line!")
+    end
     f.close()
 
     return data
@@ -12,6 +18,9 @@ end
 -- Opens and replaces a file with a string.
 local function rewrite_file(filepath, string)
     local f = fs.open(filepath, "w")
+    if not f then
+        error("Couldn't open file "..filepath)
+    end
     f.write(string)
     f.close()
 end
@@ -61,12 +70,23 @@ end
 -- Also throws away the rest of the url, e.g. http://127.0.0.1:8000/command?id=5 turns into 127.0.0.1:8000 also
 local function verify_address(url)
     local i, j = string.find(url, "//[^/]+/?")
+
+    if not i then
+        error("Couldn't parse URL "..url)
+    end
+
     url = string.gsub(string.sub(url, i, j), "/", "")
 
     settings.load("turtle_command/config.settings")
     local my_url = settings.get("url")
     i, j = string.find(my_url, "//[^/]+/?")
+
+    if not i then
+        error("Couldn't parse URL "..url)
+    end
+
     my_url = string.gsub(string.sub(my_url, i, j), "/", "")
+
 
     return url == my_url
 end
@@ -90,7 +110,16 @@ end
 -- Adds a block to the block cache
 local function append_block_cache(block_cache)
     local f = fs.open("turtle_command/block_cache.txt", "r")
-    local block_cash_old = textutils.unserialise(f.readAll())
+    if not f then
+        error("Couldn't open turtle_command/block_cache.txt")
+    end
+    local data = f.readAll()
+
+    if not data then
+        error("Couldn't get data from turtle_command/block_cache")
+    end
+
+    local block_cash_old = textutils.unserialise(data)
     f.close()
 
     -- If there werent any blocks in the old cache, block_cash_old = nil, causing an error, thus this is here.
@@ -108,6 +137,9 @@ local function append_block_cache(block_cache)
     end
 
     f = fs.open("turtle_command/block_cache.txt", "w")
+    if not f then
+        error("Couldn't open turtle_command/block_cache.txt")
+    end
     f.write(textutils.serialise(block_cash_old))
     f.close()
 end
@@ -154,7 +186,7 @@ end
 
 -- Uses turtle.inspect to inspect all 6 blocks around it, appending them to the block cache.
 local function append_inspect_all()
-    local x, y, z = gps.locate()
+    local x, y, z = gps.locate(2, false)
 
     local offset_x, offset_z = facing_offset()
 
@@ -203,7 +235,7 @@ end
 -- Utility function that will cache the blocks directly above and below it.
 -- Better than running append_inspect_all() each time as that slows the turtle down massively.
 local function cache_updown()
-    local x, y, z = gps.locate()
+    local x, y, z = gps.locate(2, false)
 
     local block_cache = {}
     local has_block, data = turtle.inspectUp()
